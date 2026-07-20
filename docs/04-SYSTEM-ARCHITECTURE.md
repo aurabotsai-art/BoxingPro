@@ -104,6 +104,46 @@ tooling (the golden-file strategy lives or dies on cheap tests), zero-dependency
 retained no advantage for pure math with no legacy code to link. The crate is
 dependency-free by policy; adding any dependency requires a new ADR.
 
+### ADR-003 (2026-07-20) — Platform pivot: web-first PWA on Vercel (supersedes §2's iOS-first decision)
+
+**Owner decision:** no iPhone/native requirement — BoxingPro ships as a web
+app deployed on Vercel. §2 above is retained for the record; this ADR governs.
+
+**New client stack:** Next.js (App Router, TypeScript) on Vercel · camera via
+`getUserMedia` · pose via **MediaPipe Tasks Vision (web)** with
+TF.js MoveNet as fallback (WASM-SIMD/WebGL/WebGPU backends, benchmarked) ·
+**Metrics Core compiled to WASM** (`wasm32-unknown-unknown` build verified
+2026-07-20; wasm-bindgen wrapper crate to follow) · IndexedDB/OPFS for local
+sessions · Supabase JS for auth/data · installable PWA for home-screen feel.
+
+**What this buys:** zero app-store friction (instant iteration, shareable
+links, viral film-study clips); one codebase for every device; the entire
+Phase-0 bake-off becomes executable in CI with Playwright + Chromium instead
+of needing a Mac/iPhone in hand; the owner's manual burden shrinks to
+footage + people + accounts (docs/13 rewritten accordingly).
+
+**What this costs (recorded honestly, feeds docs/03 tiers):**
+1. **Camera fps:** browser capture is typically 30fps, sometimes 60 where
+   the platform allows; 120/240fps HFR capture is NOT available to web pages.
+   Mitigations: request 60fps and *measure* actual per-session fps (metrics
+   confidence conditions on it); HFR "technique mode" becomes **upload a
+   slow-mo clip recorded in the phone's native camera app** and analyzed by
+   the deep tier — a UX step, not a capability loss.
+2. **Compute:** no Neural Engine access; pose budget depends on WebGL/WebGPU
+   availability, especially on iOS Safari. Tier-1 model must be lighter;
+   cue-latency budget re-verified per browser class.
+3. **Exposure control:** browsers expose little shutter control, so the
+   short-exposure anti-blur mitigation is mostly unavailable; lighting
+   guidance in the setup assistant does more work.
+4. **Background/lock behavior:** sessions must survive screen-dim policies;
+   wake-lock API required.
+
+Net judgment: distribution + iteration speed outweigh the fps/compute
+ceiling for finding product-market fit. If Tier-1 quality on target browsers
+misses gate G0 bars, the recorded fallback is capture-then-analyze (record
+in-browser at native fps, analyze seconds later) before any return to
+native. A native iOS wrapper remains a Phase-4 option once PMF exists.
+
 ### ADR-002 (2026-07-20) — Strike detection: out+return merged as one event
 
 The kinematic detector (hysteresis on wrist speed) naturally produces two

@@ -30,7 +30,7 @@ Start at [`docs/00-INDEX.md`](docs/00-INDEX.md) — it maps all twelve documents
 
 ## Architecture in one breath
 
-iOS-first native app (Swift/SwiftUI) captures 60fps video → on-device pose estimation → shared C++/Rust biomechanics core → real-time coaching cues (Tier 1), with deep post-session "film study" analysis (Tier 2) via heavier models, a deterministic fault engine, and Claude-powered coach narration. Supabase backend, GPU workers for deep analysis, on-device-by-default privacy.
+Web-first PWA (Next.js on Vercel, ADR-003 in docs/04): browser camera → in-browser pose estimation (MediaPipe Tasks / TF.js) → the shared Rust Metrics Core compiled to WASM → real-time coaching cues (Tier 1), with deep post-session "film study" analysis (Tier 2) on GPU workers, a deterministic fault engine, and Claude-powered coach narration. Supabase backend, on-device-by-default privacy. Same Rust core runs in browser, server, and any future native shell — identical numbers everywhere.
 
 ## Rules of engagement
 

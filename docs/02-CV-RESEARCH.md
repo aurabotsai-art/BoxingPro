@@ -44,6 +44,18 @@ _The technology survey underpinning every perception decision. Verify benchmarks
 
 **Cross-platform inference core decision:** the *metrics/biomechanics* layer (post-keypoint math) is one shared **C++ (or Rust) library** with Swift/Kotlin bindings — deterministic, unit-testable, identical numbers on both platforms and on the server. Pose inference itself stays platform-native (ANE/LiteRT reach requires it). Alternative rejected: full cross-platform inference via ONNX Runtime everywhere — loses ANE performance on iOS, the single most important perf budget.
 
+### 2.1 Browser runtimes (governing per ADR-003, docs/04)
+
+| Runtime | Verdict |
+|---|---|
+| **MediaPipe Tasks Vision (web)** | Primary: PoseLandmarker (BlazePose family) with WASM-SIMD + WebGL/WebGPU delegates; best-supported web pose stack |
+| **TF.js MoveNet (webgl/webgpu/wasm)** | Fallback + bake-off contender; historically strong on fast motion |
+| **ONNX Runtime Web (RTMPose)** | Bench candidate; wins if WebGPU throughput beats MediaPipe on target devices |
+| **Metrics Core → WASM** | `wasm32-unknown-unknown` build verified; wasm-bindgen JS API next. Same crate, same numbers, browser/server/native |
+| **WebGPU vs WebGL vs WASM-SIMD** | Feature-detect ladder at session start; measured fps + backend recorded per session (accuracy claims condition on it) |
+
+Browser-specific constraints (fps ceiling ~30–60, no HFR, minimal exposure control, wake-lock, iOS-Safari WebGPU variability) are recorded in ADR-003 and bound into the honesty tiers: any metric whose error depends on fps carries the *measured* session fps in its confidence.
+
 ## 3. Camera physics — the constraints that shape everything
 
 ### 3.1 The fast-punch problem (the #1 technical risk)

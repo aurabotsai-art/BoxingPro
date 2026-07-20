@@ -2,9 +2,9 @@
 
 ## What this project is
 
-An AI boxing coach for smartphones using **only the phone camera** (no sensors/hardware): real-time pose-based analysis of stance, punches, defense, footwork and rhythm, plus deep post-session "film study" and a periodized coaching engine.
+An AI boxing coach in the browser using **only the phone camera** (no sensors/hardware): real-time pose-based analysis of stance, punches, defense, footwork and rhythm, plus deep post-session "film study" and a periodized coaching engine.
 
-**Current status: Phase 0 in progress.** The planning suite in `docs/` (start at `docs/00-INDEX.md`) governs all work. Built so far: `core/` (Rust Metrics Core — spike S0.6 done, ADR-001/002 in docs/04: types, filters, geometry/COM, strike events+metrics, footwork steps/stance, rhythm/predictability, fault primitives), `contracts/` (the three v1 JSON Schemas), `content/` (fault/drill seeds, cross-reference-linted by `tools/lint_content.py`), `supabase/migrations/` (schema v1), CI (fmt+clippy+tests+content lint+schema validation). Remaining Phase-0 spikes (S0.1–S0.5, S0.7) need physical devices and collected footage. Red-team open items O1–O4 (docs/12 §3) still block Phase 1.
+**Current status: Phase 0 in progress.** The planning suite in `docs/` (start at `docs/00-INDEX.md`) governs all work. Built so far: `core/` (Rust Metrics Core — spike S0.6 done, ADR-001/002 in docs/04: types, filters, geometry/COM, strike events+metrics, footwork steps/stance, rhythm/predictability, fault primitives), `contracts/` (the three v1 JSON Schemas), `content/` (fault/drill seeds, cross-reference-linted by `tools/lint_content.py`), `supabase/migrations/` (schema v1), CI (fmt+clippy+tests+content lint+schema validation). Post-ADR-003, spikes S0.1–S0.3 are largely executable in CI (Playwright + Chromium); S0.4–S0.5 still need collected footage; phone-browser verification needs only the owner's phone. Red-team open items O1–O4 (docs/12 §3) still block Phase 1.
 
 Verify before committing core changes: `cd core && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
 
@@ -18,10 +18,10 @@ Verify before committing core changes: `cd core && cargo fmt --check && cargo cl
 
 ## Key architecture facts (details in docs/04 & 05)
 
-- iOS-first fully native (Swift/SwiftUI, AVFoundation, Core ML/Vision); Android in Phase 3 (Kotlin, LiteRT/NCNN).
-- One shared C++/Rust **Metrics Core** (post-keypoint biomechanics math) used by iOS, Android, and server — identical numbers everywhere.
+- **Web-first PWA** (ADR-003 in docs/04): Next.js on Vercel; browser camera (getUserMedia); pose via MediaPipe Tasks Vision (TF.js MoveNet fallback); no native apps unless PMF demands one.
+- One shared Rust **Metrics Core** (post-keypoint biomechanics math) compiled to WASM for the browser and natively for servers — identical numbers everywhere. wasm32 build verified.
 - **Two-tier analysis:** Tier 1 live on-device (60fps pose, ≤300 ms cue latency, one cue at a time); Tier 2 async film study (whole-body pose + 3D lifting on GPU workers, or Tier-2-lite fully on-device).
-- Capture spec: 720p@60fps minimum, short-exposure priority; 120/240fps HFR drill mode processed async.
+- Capture spec: request 60fps via getUserMedia, MEASURE real fps per session (metric confidence conditions on it); HFR = user uploads native-camera slow-mo clips for deep analysis (browsers can't capture HFR).
 - Backend: Supabase (Postgres+RLS, Auth, Storage) + serverless GPU workers + Claude API coach brain. Schema in `docs/08`.
 - Canonical artifacts/contracts: SkeletonArchive v1, SessionAnalysis v1, CoachOutput v1 (`docs/04` §6) — version-bump discipline applies.
 

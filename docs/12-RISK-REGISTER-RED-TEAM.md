@@ -57,6 +57,11 @@ _Walked at every phase gate. Scores: Likelihood × Impact (1–5 each). Mitigati
 14. **Famous-fighter similarity legal exposure** → Resolved: archetype framing, counsel review, drop-name fallback ([10](10-SECURITY-PRIVACY.md) §6).
 15. **Roadmap timeboxes read as promises** — solo/small-team velocity uncertainty is high. → Resolved: gates are the commitments; timeboxes labeled estimates; scope sheds per the tier system, never the gates.
 
+### Round 4 — platform pivot to web (ADR-003, owner decision 2026-07-20)
+16. **Browser fps ceiling reopens R2** — getUserMedia tops out at 30–60fps with no HFR; the fast-punch risk widens. → Mitigated, not resolved: measured-fps-conditioned confidence on every speed metric, upload-slow-mo path for technique mode, capture-then-analyze fallback mode defined before any native retreat (ADR-003). R2 likelihood re-scored 3→4; watch at G0.
+17. **iOS Safari variability** (WebGPU/WebGL performance, wake-lock, camera quirks) becomes the new device-fragmentation risk, replacing Android fragmentation. → Backend feature-detect ladder + per-session backend/fps telemetry (docs/02 §2.1); iOS Safari explicitly in the G0 test matrix.
+18. **Pivot dividend recorded:** app-store gatekeeping risk (old R15) retired; distribution friction near zero; entire bake-off now CI-executable. M-track shrank from 14 items to 13 with the 4 heaviest (Mac/Xcode/Apple account/App Store) deleted (docs/13).
+
 ### Open items (must close before Phase-1 build start)
 - O1: Coach panel recruitment (2–3 credentialed coaches) — blocks taxonomy v1 sign-off.
 - O2: Counsel selection for biometric/consent review — blocks public beta.

@@ -2,87 +2,91 @@
 
 _The operational sequencing doc. Two tracks run in parallel: the **E-track** (executable by the AI engineering session in this cloud environment, no human hands needed) and the **M-track** (requires the owner's hands, money, identity, or judgment). Sync points show where the tracks block each other. Updated as items complete._
 
-**How to use this doc:** the E-track advances whenever you say "continue." The M-track is your personal checklist — every item lists *why it's needed, what it blocks, and what to hand back*. Nothing on the E-track ever waits silently: when an E-item hits an M-dependency, it's parked and named here.
+**Rewritten 2026-07-20 for ADR-003 (web-first PWA on Vercel).** The pivot moved most of the old M-track (Mac, Xcode, iPhone, Apple Developer account, App Store) onto the E-track: a web app can be built, tested (Playwright + Chromium is available in this environment), and deployed from here. Your manual list is now short.
 
 ---
 
 ## 1. E-track — executable in this environment, in order
 
-Already done (E0): planning suite docs/00–12 · Rust Metrics Core (types, filters, geometry/COM, strike detection+metrics, footwork, rhythm, fault primitives; 23 tests) · three v1 contracts · content seeds (4 faults, 8 drills) + linter · Supabase schema v1 migration file · CI (fmt, clippy, tests, content lint, schema validation).
+Already done (E0): planning suite docs/00–13 · Rust Metrics Core (types, filters, geometry/COM, strike detection+metrics, footwork, rhythm, fault primitives; 23 tests) · **WASM build of the core verified** · three v1 contracts · content seeds + linter · Supabase schema v1 migration · CI.
 
 | # | Item | What it is | Needs from you |
 |---|---|---|---|
-| E1 | **Combo assembler + guard-state sampler + telegraph primitives** | Remaining pure-math pipeline pieces: strike sequences → "1-1-2" combination strings; continuous guard-position classification; pre-punch tell detection windows | Nothing |
-| E2 | **SkeletonArchive JSON I/O + analysis runner** | Reader/writer for the archive contract + a CLI that runs archive → SessionAnalysis JSON through the full core. This is the harness your first real footage drops into | Nothing |
-| E3 | **Fault taxonomy → ~40, drills → ~60 (draft status)** | Full MVP coaching knowledge base, marked `status: seed` until coach panel review (M4) upgrades entries to `panel_reviewed` | Nothing to write; M4 to bless |
-| E4 | **Prioritizer + template Coach Brain** | The docs/06 §3 priority algorithm in code, plus the deterministic CoachOutput template renderer (the LLM-unavailable fallback path — building it first forces clean structure) | Nothing |
-| E5 | **Claude Coach Brain + prompt/eval suite** | Prompt templates, few-shots, echo-check validator, the ~100-case LLM eval set from docs/07 §6 | M8 (API key/billing) to actually run evals |
-| E6 | **Labeling tool v0** | Local web app: video + skeleton overlay, scrub, event marking, class hotkeys (docs/07 §3) | Nothing to build; footage (M2) to use |
-| E7 | **Data-collection kit** | Shot lists, scripted session matrix, consent forms draft, filming checklist for your capture days (M2) | Nothing |
-| E8 | **iOS app scaffold (written blind)** | Swift/SwiftUI project: capture pipeline, setup assistant, session flow, Metrics Core FFI bindings — written here, **cannot be compiled or run here** (no Xcode/macOS). Sits ready for M1 | M1 to build/verify |
-| E9 | **GPU worker skeleton** | Python job runner: poll jobs table → decode → pose (server models) → core metrics → write analysis. Runs end-to-end on CPU with dummy pose here; real models need M9 | M9 (GPU account) to deploy |
-| E10 | **Supabase provisioning** | Create project, apply migration 00001, storage buckets, RLS verification — I can do this directly through the Supabase connector | M6 (authorize connector + confirm cost) |
-| E11 | **Classifier training pipeline (dry)** | PyTorch training/eval/export code for the ST-GCN-class model, validated on synthetic sequences; real training needs the labeled dataset | M2 (footage) → E6 labeling |
-| E12 | **Golden-clip CI harness** | Wire real labeled clips (once they exist) into CI regression gates per docs/04 §8 | M2 |
+| E1 | **wasm-bindgen wrapper + JS API for Metrics Core** | `core-wasm/` crate exposing the pipeline to the browser; npm-consumable package with TypeScript types | Nothing |
+| E2 | **Next.js app scaffold** | App Router + TypeScript + Tailwind PWA: camera capture, pose worker (MediaPipe Tasks), skeleton overlay, session flow, IndexedDB storage — built AND smoke-tested here with Playwright | Nothing |
+| E3 | **S0.1 browser pose bake-off (CI half)** | MediaPipe vs MoveNet vs ONNX-web RTMPose on Chromium against sample/synthetic footage; fps + wrist-retention tables | Real-footage half needs M2; phone-browser half needs M1 (5 min with your phone) |
+| E4 | **Combo assembler + guard sampler + telegraph primitives** | Remaining pure-math pipeline pieces in the core | Nothing |
+| E5 | **SkeletonArchive JSON I/O + analysis CLI runner** | archive → SessionAnalysis JSON through the full core; the harness footage drops into | Nothing |
+| E6 | **Data-collection kit** | Shot lists, scripted session matrix, consent drafts, filming checklist for M2 | Nothing |
+| E7 | **Prioritizer + template Coach Brain** | docs/06 §3 priority algorithm + deterministic CoachOutput renderer (LLM-fallback path first) | Nothing |
+| E8 | **Fault taxonomy → ~40, drills → ~60 (drafts)** | Full MVP knowledge base at `status: seed` until coach panel (M4) | Nothing to write |
+| E9 | **Labeling tool v0** | Web labeler: video + skeleton overlay, hotkeys (docs/07 §3) | Footage (M2) to use |
+| E10 | **Vercel deploy of the app** | Preview + production deploys via the Vercel connector; shareable URL for you to test on your phone | M3 (authorize connector) |
+| E11 | **Supabase provisioning** | Create project, apply migration, buckets, RLS verification | M3 (authorize connector + cost ok) |
+| E12 | **Claude Coach Brain + prompt/eval suite** | Prompts, few-shots, echo-check validator, ~100-case eval set | M5 (API key) to run evals |
+| E13 | **GPU worker skeleton → deploy** | Deep-tier job runner (dummy-pose end-to-end here) | M6 (GPU account) to deploy real models |
+| E14 | **Classifier training pipeline → trained v0** | Training/eval/export code (dry on synthetic now); real training on labeled data | M2 → E9 labeling |
+| E15 | **Golden-clip CI harness** | Labeled clips wired into CI regression gates | M2 |
 
-Recommended E-order: E1 → E2 → E7 → E4 → E3 → E6 → E5 → E8 → E9 → E11 → (E10, E12 when unblocked). E1–E7 have zero external dependencies — say "continue" and they proceed.
+Recommended order: E1 → E2 → E3 → E6 → E4 → E5 → E7 → E8 → E9 → (E10/E11 when M3) → E12 → E13 → E14 → E15. **E1–E9 have zero owner dependencies** — "continue" advances them.
 
 ---
 
-## 2. M-track — your manual checklist
+## 2. M-track — your manual checklist (post-pivot)
 
-### Now (unblocks the most)
-
-| # | Action | Why / what it blocks | Hand back |
-|---|---|---|---|
-| **M1** | **Get the iOS toolchain in your hands:** a Mac with Xcode, an iPhone (any recent model; ideally also an older one), and an Apple Developer account ($99/yr) | ALL device spikes (S0.1 pose bake-off, S0.2 fps tests) and every iOS build forever. This environment has no macOS/devices — I write the code, **you build and run it** and paste results/screenshots back | Xcode build results, benchmark numbers, crash logs |
-| **M2** | **Film the bootstrap footage.** Using my shot lists (E7): yourself + ideally 3–10 boxing folks (a local gym helps), scripted sessions — every punch type × stance × slow/fast × 3 angles, 60fps, plus 240fps slow-mo reference clips. Phone on a tripod/prop | Spikes S0.3–S0.5, the classifier (E11), golden clips (E12) — **the dataset is the moat and only you can film it** | Video files (upload to the repo via Git LFS, a cloud drive link, or directly into a session) |
-| **M3** | **Confirm your role & resources.** Are you solo? Budget envelope? Timeline pressure? | Calibrates how aggressively I sequence everything (e.g. whether E8 iOS scaffold is worth writing blind now or after M1) | A short message |
-
-### Soon (blocks Phase 1 / beta)
+### Now
 
 | # | Action | Why / what it blocks | Hand back |
 |---|---|---|---|
-| **M4** | **Recruit 2–3 credentialed boxing coaches** (advisor fee or equity). I'll draft the outreach message and the review packet | Red-team item O1. Fault taxonomy and drill library can't be *blessed* by engineers; blocks "panel_reviewed" status and gate G1 coaching-correctness | Names + agreement; then their markup of content/ |
-| **M5** | **Engage a privacy/biometrics lawyer** (one consult to start: BIPA/GDPR posture, consent copy review) | Red-team item O2. Blocks public beta — biometric class actions are existential (docs/10 §2) | Counsel's checklist deltas |
-| **M6** | **Authorize the infrastructure connectors** in your claude.ai settings (Supabase; Vercel if we host anything web) and approve project costs when I surface them | Blocks E10. Note: some connected services in this session currently need (re)authorization on your side before I can drive them | A "done" + cost approvals |
-| **M7** | **Decide product identity basics:** confirm the name "BoxingPro" (quick trademark search — a lawyer or even a USPTO/EUIPO web search), pick initial markets (US-only first?), pricing intent | Blocks App Store metadata, marketing copy, and the legal review scope | Decisions in a message |
-| **M8** | **Set up the Claude API account/key** (console.anthropic.com) and decide monthly AI budget | Blocks running the Coach Brain evals (E5) and any live coaching narrative | Key via secure env config (never paste into chat/repo) |
-| **M9** | **Create the GPU worker account** (Modal or similar; free tiers exist) | Blocks deploying E9 deep-analysis tier | Account + auth config |
+| **M1** | **Test on your own phone.** When I hand you a Vercel URL (E10): open it in your phone browser, run a session, tell me what you see (fps readout, pose quality, heat) | The phone-browser half of S0.1/S0.2 — 5-minute loops, no Mac/Xcode/anything | Screenshots + the on-screen diagnostic numbers |
+| **M2** | **Film the bootstrap footage.** Using my shot kit (E6): yourself + ideally 3–10 boxing folks, scripted sessions — every punch type × stance × slow/fast × 3 angles at your phone's best fps, plus native-camera slow-mo reference clips. Tripod/prop | The dataset is the moat; blocks classifier (E14), golden CI (E15), G0 accuracy claims. **Only you can film people** | Video files (cloud-drive link, Git LFS, or into a session) |
+| **M3** | **Authorize connectors + approve costs:** Vercel and Supabase in your claude.ai connector settings (several connectors in this session currently need [re]authorization on your side); approve project costs when I surface them | Blocks E10 (deploys) and E11 (backend). Free tiers likely suffice at first | "Done" + cost approvals |
 
-### Later (blocks launch, not development)
+### Soon (block Phase 1 / beta)
 
-| # | Action | Why / what it blocks |
+| # | Action | Why / what it blocks | Hand back |
+|---|---|---|---|
+| **M4** | **Recruit 2–3 credentialed boxing coaches** (advisor fee/equity; I draft the outreach + review packet) | O1. Blocks taxonomy `panel_reviewed` status and G1 coaching-correctness | Names + agreements; their markup of content/ |
+| **M5** | **Claude API account/key** (console.anthropic.com) + monthly AI budget | Blocks live Coach Brain + evals (E12) | Key via env config (never in chat/repo) |
+| **M6** | **GPU worker account** (Modal-class; free tier fine) | Blocks deep-tier deploy (E13) | Account/auth config |
+| **M7** | **Privacy/biometrics lawyer, one consult** (BIPA/GDPR posture, consent copy) | O2. Blocks public beta — existential risk class (docs/10 §2) | Counsel's checklist deltas |
+| **M8** | **Product identity decisions:** confirm "BoxingPro" name (trademark search), domain purchase, launch market, pricing intent | Blocks domain/branding, legal scope, Stripe setup | Decisions + domain |
+
+### Later (block launch, not development)
+
+| # | Action | Why |
 |---|---|---|
-| **M10** | **Apple App Store setup:** app record, TestFlight, review compliance (camera/privacy strings), screenshots | Public beta and launch |
-| **M11** | **Recruit ~50 beta testers** (the M2 gym relationships are the seed; I'll draft the recruitment post) | Gate G1 activation/retention numbers need real humans |
-| **M12** | **Device test matrix purchase** (red-team O3): floor-spec iPhone + current base + Pro; Androids in Phase 3 | Release benchmark gates |
-| **M13** | **240fps ground-truth rig** (any recent iPhone's slow-mo counts) for the power-index validation study | Phase 2 honesty artifact |
-| **M14** | **Business formation** (LLC/company, bank, insurance) when money starts moving | Subscriptions can't ship without an entity |
+| **M9** | **Recruit ~50 beta testers** (gym relationships from M2 are the seed; I draft the pitch) | G1 activation/retention needs humans |
+| **M10** | **Stripe account** (needs a legal entity → M11) | Subscriptions at Phase-2 launch |
+| **M11** | **Business formation** (LLC/company, bank) when money starts moving | Can't charge without it |
+| **M12** | **Phone test pool** — a low-end Android and an older iPhone (borrowed is fine) for the browser matrix | G3 cross-browser parity |
+| **M13** | **Slow-mo ground-truth clips** (any recent phone's native 240fps camera) | Power-index validation study (Phase 2) |
+
+**Gone from the list (pivot dividend):** Mac + Xcode, Apple Developer account, App Store review, TestFlight, iOS device matrix purchases.
 
 ### Standing (recurring involvement)
 
-- **Weekly:** answer parked questions; "continue" the E-track; review anything I flag as a judgment call.
-- **After M1:** run device builds/benchmarks when I hand you a build — this becomes the core loop of Phase 0/1 (I code → you run on device → paste results → I iterate).
+- **Weekly:** "continue" the E-track; answer parked questions; test the latest deploy on your phone (M1 loop).
 - **After M4:** route monthly content/coach-output reviews to the panel.
-- **Every gate (G0–G3):** you are the sign-off. Gates are yours, not mine.
+- **Every gate (G0–G3):** you sign off. Gates are yours.
 
 ---
 
-## 3. Sync points (where the tracks meet)
+## 3. Sync points (post-pivot)
 
 ```
-E1–E7 ──────────────┐  (no dependencies — running now)
-                    │
-M1 (Mac+iPhone) ────┼─→ SYNC-1: S0.1/S0.2 pose & fps bake-off on device
-M2 (footage) ───────┼─→ SYNC-2: label (E6) → train (E11) → S0.3–S0.5 → golden CI (E12)
-                    │
-        SYNC-1 + SYNC-2 ═══→ GATE G0 (product viability — owner sign-off)
-                    │
-M4 (coaches) ───────┼─→ taxonomy blessed → Phase 1 coaching quality
-M6 (connectors) ────┼─→ E10 backend live
-M8 (API key) ───────┼─→ E5 Coach Brain evals live
-M5 (lawyer) ────────┴─→ public beta unblocked (with M10, M11)
+E1–E9 ────────────────┐  (no owner dependencies — running now)
+                      │
+M3 (connectors) ──────┼─→ E10 deploy + E11 backend → SYNC-1: URL on your phone (M1)
+M2 (footage) ─────────┼─→ E9 label → E14 train → E15 golden CI
+                      │
+   SYNC-1 (browser bake-off on real phones)
+        + M2 pipeline ═══→ GATE G0 (viability — owner sign-off)
+                      │
+M4 (coaches) ─────────┼─→ taxonomy blessed → Phase 1 coaching quality
+M5 (API key) ─────────┼─→ E12 Coach Brain live
+M6 (GPU acct) ────────┼─→ E13 deep tier live
+M7 (lawyer) ──────────┴─→ public beta unblocked (with M9)
 ```
 
-**The critical path is M1 + M2.** Every week without a device and footage, the E-track builds further ahead on synthetic data — useful, but G0 (the "is this product physically viable" gate) cannot close without them. If you do only two things this month, do those two.
+**The critical path is now M2 (footage) + M3 (connectors).** M3 is ten minutes of clicking; M2 is the one genuinely irreplaceable human job left. Everything else — building, testing, deploying the entire product — runs on the E-track.

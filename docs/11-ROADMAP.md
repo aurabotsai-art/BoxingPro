@@ -6,21 +6,26 @@ _Sequenced by risk: the plan attacks perception risk first (it can kill the prod
 
 Tech spikes only; throwaway code allowed; decisions documented as ADR appendices to this suite.
 
+_Platform pivot (ADR-003, docs/04): web-first PWA. S0.1/S0.2 re-scoped from
+iOS-native to browser and are now largely executable in CI (Playwright +
+Chromium) against collected footage; real-phone browser verification remains
+an owner step but needs only a phone, not a Mac/Xcode._
+
 | Spike | Question | Output |
 |---|---|---|
-| S0.1 Pose bake-off | RQ1: Apple Vision 3D vs RTMPose-m Core ML — wrist retention under real punches, fps, thermals on device matrix | Model decision + measured accuracy tables |
-| S0.2 Fast-punch capture | RQ2: 30 vs 60 vs 120fps classification/speed-metric viability | Capture spec confirmation |
+| S0.1 Pose bake-off (browser) | RQ1: MediaPipe Tasks vs TF.js MoveNet vs ONNX-web RTMPose — wrist retention under real punches, fps by backend (WebGPU/WebGL/WASM) on desktop + phone browsers | Model+backend decision + measured accuracy tables |
+| S0.2 Capture reality check | RQ2: actual getUserMedia fps by device/browser; 30 vs 60fps metric viability; upload-slow-mo path for HFR | Capture spec confirmation |
 | S0.3 Event detector | Wrist-kinematics punch detection recall on scripted footage | Detector v0 + thresholds |
 | S0.4 Bootstrap dataset | P0 collection: founder + local boxers, scripted matrix ([07](07-DATA-STRATEGY-MLOPS.md) §2) | ~10k labeled reps + labeler tool v0 |
 | S0.5 Classifier v0 | Core-6 F1 at 60fps on held-out set | Go/no-go evidence |
 | S0.6 Metrics core toolchain | ✅ **Done: Rust** (ADR-001, docs/04). `core/` crate live: types, One-Euro filter, geometry/COM, strike detection, per-strike metrics — 12 tests incl. synthetic ground-truth recovery and the 30/60/120fps accuracy ablation | Language decision |
 | S0.7 3D lifting eval | RQ3: rotation-angle fidelity vs side-view ground truth | Tier-2 pipeline decision |
 
-**GATE G0 (product viability):** on mid-tier iPhone: 60fps sustained pose ≥10 min; punch-event recall ≥95% scripted; core-6 F1 ≥85% (v0 bar); hand-speed estimates within ±15% of HFR-derived ground truth. **Miss badly → pivot conversation** (e.g., bag-mounted-phone product, drill-only product) happens here, cheaply, not after a year of building.
+**GATE G0 (product viability):** on a mid-tier phone **browser**: sustained pose ≥10 min at the device's real capture fps (30fps floor, 60 target); punch-event recall ≥95% scripted; core-6 F1 ≥85% (v0 bar) at the fps actually achieved; hand-speed estimates within ±15% of slow-mo-derived ground truth (or honestly range-widened at 30fps per docs/03). **Miss badly → recorded fallback first** (capture-then-analyze mode, ADR-003), then pivot conversation — cheaply, not after a year of building.
 
 ## Phase 1 — MVP: the magic loop (≈10–14 weeks)
 
-Scope: iOS shadowboxing + reaction mode, Tier-1 live coaching, Tier-2-lite film study (on-device fault engine; server tier can lag), calibration ritual, fault taxonomy v1 (~40 faults), drill library v1 (~60 drills), plans v1, core gamification (XP/streaks/skill-tree v1), Supabase backend, privacy dashboard v1, coach panel retained ([06](06-COACHING-ENGINE.md) §8).
+Scope: web app (Next.js PWA on Vercel, ADR-003) shadowboxing + reaction mode, Tier-1 live coaching, Tier-2-lite film study (on-device fault engine; server tier can lag), calibration ritual, fault taxonomy v1 (~40 faults), drill library v1 (~60 drills), plans v1, core gamification (XP/streaks/skill-tree v1), Supabase backend, privacy dashboard v1, coach panel retained ([06](06-COACHING-ENGINE.md) §8).
 
 Sprint skeleton (2-week sprints):
 1. Capture + setup assistant + pose integration (winner model)
@@ -32,7 +37,7 @@ Sprint skeleton (2-week sprints):
 7. Coach Brain (Claude narratives + plans) + drill delivery + onboarding
 8. Gamification v1 + polish + device-matrix hardening + closed beta (~50 users incl. coach panel's gyms)
 
-**GATE G1 (magic gate):** activation ≥50% (beta), magic-moment view ≥60%, fault "wrong" reports <15%, coach panel rates ≥70% of film studies "technically correct"; crash-free ≥99.5%; thermal survival: 10×3 min rounds on base iPhone. Beta feedback loop runs 4+ weeks before public.
+**GATE G1 (magic gate):** activation ≥50% (beta), magic-moment view ≥60%, fault "wrong" reports <15%, coach panel rates ≥70% of film studies "technically correct"; crash-free ≥99.5%; thermal survival: 10×3 min rounds in a mid-tier phone browser. Beta feedback loop runs 4+ weeks before public.
 
 ## Phase 2 — Depth & trust (≈10–12 weeks)
 
@@ -40,19 +45,19 @@ Sprint skeleton (2-week sprints):
 - Heavy bag mode (occlusion-tuned) + technique mode (HFR per-rep analysis)
 - Extended punch classes as F1 gates pass; telegraph + exposure metrics; style detection v1
 - Flywheel v1: consented contributions + active learning loop + trust-button labeling
-- Public launch (App Store) + subscription live
+- Public launch (open web signup, PWA install prompt) + subscription live (Stripe)
 - **Power-index validation study** vs. instrumented bag (publishable honesty artifact, marketing asset)
 
-**GATE G2:** D28 retention ≥30% (paying cohort), deep-tier cost ≤$0.05/session measured, extended-class F1 gates green, coach-panel correctness ≥80%, zero P1 privacy incidents, App Store rating ≥4.5 sustained.
+**GATE G2:** D28 retention ≥30% (paying cohort), deep-tier cost ≤$0.05/session measured, extended-class F1 gates green, coach-panel correctness ≥80%, zero P1 privacy incidents, user satisfaction ≥4.5/5 in-app sustained.
 
 ## Phase 3 — Breadth & growth (≈12+ weeks)
 
-- Android (Kotlin + LiteRT/NCNN; shared Metrics Core pays off here)
+- Browser-matrix hardening (iOS Safari, Android Chrome, low-end devices) to benchmark parity; native wrapper evaluated only if PMF demands it (ADR-003)
 - Conditioning, double-end/speed bag, pads mode with partner scripts + two-person tracking v1
 - Leaderboards/challenges/seasons; fighter-similarity "Style DNA"; localization ES/PT
 - Fine-tuned pose decision point (only if Phase-2 error analysis demands it — [02](02-CV-RESEARCH.md) §1.3)
 
-**GATE G3:** Android parity on golden-clip benchmarks (±5% of iOS metrics); growth loop (K-factor from shareable film-study clips) measured; infra costs linear with revenue.
+**GATE G3:** cross-browser parity on golden-clip benchmarks (±5% across the browser matrix); growth loop (K-factor from shareable film-study clips) measured; infra costs linear with revenue.
 
 ## Phase 4+ — The horizon (explicitly speculative, re-planned at G3)
 
@@ -67,4 +72,4 @@ Sparring review (multi-person contact CV — hardest problem, own research track
 
 ## What we deliberately do NOT schedule
 
-No sensor/hardware line. No web app for fighters (film study stays where the camera is; a web *coach dashboard* is Phase-4 B2B scope). No social feed. No punch-count marketing. No feature ships ahead of its feasibility tier ([03](03-FEASIBILITY.md)) or its accuracy gate — the roadmap bends to the gates, never the reverse.
+No sensor/hardware line. No native mobile apps unless PMF demands one (ADR-003). No social feed. No punch-count marketing. No feature ships ahead of its feasibility tier ([03](03-FEASIBILITY.md)) or its accuracy gate — the roadmap bends to the gates, never the reverse.
