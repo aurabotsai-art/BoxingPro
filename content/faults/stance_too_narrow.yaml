@@ -1,0 +1,20 @@
+id: stance_too_narrow
+category: stance
+title: Stance too narrow
+detector: footwork.stance_integrity mean_width < adaptive(user, base=0.9×shoulder_width) sustained
+severity_model: out_of_band_fraction × 0.8   # base faults gate everything above them
+prerequisites: []
+root_causes: [never_taught, feet_drift_under_combos]
+cause_discriminators:
+  never_taught: narrow from round start, static
+  feet_drift_under_combos: starts correct, narrows during exchanges (width track vs strike events)
+explanation: >
+  Everything is built on the base. A narrow stance means no ground to push
+  from — punches become arm punches — and one touch off-balances you. This is
+  why it is a prerequisite fault: coaching power mechanics on a narrow base
+  teaches faster arm punching, not punching.
+fixes_by_cause:
+  never_taught: { drills: [stance_reset_steps], cue: "find your width" }
+  feet_drift_under_combos: { drills: [stance_reset_steps, step_jab_sync], cue: "base first" }
+tier: T0
+status: seed

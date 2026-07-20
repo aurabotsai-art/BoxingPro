@@ -18,8 +18,11 @@
 //!   function; all times are milliseconds; all speeds m/s.
 
 pub mod events;
+pub mod faults;
 pub mod filters;
+pub mod footwork;
 pub mod geometry;
 pub mod metrics;
+pub mod rhythm;
 pub mod synthetic;
 pub mod types;

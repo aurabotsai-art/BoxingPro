@@ -1,0 +1,16 @@
+id: stance_reset_steps
+name: Stance reset stepping
+targets_faults: [stance_too_narrow, hands_drop_after_punch]
+mode: footwork
+equipment: none
+space: small
+duration_default: 3x2min
+difficulty: 1
+protocol: >
+  App calls step directions (forward/back/left/right/pivot) at building tempo.
+  After every step the fighter must arrive back in their calibrated stance
+  width band before the next call; the live stance-width track is scored
+  continuously and the call tempo only rises while integrity holds.
+success_criterion: stance_integrity out_of_band_fraction < 0.15 at tempo level 3
+video_asset: TODO
+status: seed

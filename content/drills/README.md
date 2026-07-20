@@ -2,7 +2,7 @@
 
 Structured drills the coach engine prescribes (docs/06 §7). The LLM selects and sequences from this library; it can never invent a drill. Every drill declares a **measurable success criterion** over Metrics Core outputs so the coaching loop closes (prescribe → measure → adapt).
 
-**Status: v0 seed (4 drills referenced by seed faults).** Target ~60 for MVP with coach-panel authorship. Video demos are production assets, tracked by ID here.
+**Status: v0 seed (8 drills, all referenced by seed faults).** Target ~60 for MVP with coach-panel authorship. Video demos are production assets, tracked by ID here. Cross-references enforced by `tools/lint_content.py` in CI.
 
 Schema:
 

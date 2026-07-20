@@ -79,6 +79,28 @@ pub enum Stance {
     Southpaw,
 }
 
+/// Strike classes v1 (docs/05 §6). Classification itself is ML and lives
+/// outside this crate; the core consumes its output. `Unclassified` is a
+/// first-class honest outcome (open-set rule), never a forced label.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StrikeClass {
+    Jab,
+    Cross,
+    LeadHook,
+    RearHook,
+    LeadUppercut,
+    RearUppercut,
+    Feint,
+    Unclassified,
+}
+
+impl StrikeClass {
+    /// Straight punches, for rules that only apply to linear trajectories.
+    pub fn is_straight(self) -> bool {
+        matches!(self, StrikeClass::Jab | StrikeClass::Cross)
+    }
+}
+
 /// Calibrated fighter measurements produced by the calibration ritual
 /// (docs/03-FEASIBILITY.md §3). Lengths in meters.
 #[derive(Debug, Clone)]

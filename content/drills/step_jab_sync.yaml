@@ -1,0 +1,16 @@
+id: step_jab_sync
+name: Step-jab synchronization
+targets_faults: [overextension, stance_too_narrow]
+mode: technique
+equipment: none
+space: medium
+duration_default: 3x90s
+difficulty: 2
+protocol: >
+  Teaches closing distance with the feet instead of the arm. App calls
+  "step-jab" reps; scoring pairs each strike event with a lead-foot step event
+  and grades their timing offset (foot lands as fist lands) plus
+  extension_frac staying in band — reaching instead of stepping fails the rep.
+success_criterion: median |step_land - strike_apex| < 80ms with p90(extension_frac) ≤ 1.02
+video_asset: TODO
+status: seed

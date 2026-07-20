@@ -1,0 +1,16 @@
+id: prompt_random_combos
+name: Random combination calls
+targets_faults: [predictable_rhythm]
+mode: reaction
+equipment: none
+space: small
+duration_default: 3x2min
+difficulty: 2
+protocol: >
+  App calls combinations from the user's known set in unpredictable order and
+  timing (deterministic per-round seed from session id). Grades response
+  latency and inter-strike cadence variance — the goal is breaking the
+  fighter's fixed combo tempo, so *higher* cadence variance scores better.
+success_criterion: inter-strike interval variance above population p40 while response latency < 400ms
+video_asset: TODO
+status: seed

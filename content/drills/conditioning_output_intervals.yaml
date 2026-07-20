@@ -1,0 +1,16 @@
+id: conditioning_output_intervals
+name: Output intervals
+targets_faults: [hands_drop_after_punch]
+mode: conditioning
+equipment: none
+space: small
+duration_default: 6x60s (20s high output / 40s active guard)
+difficulty: 3
+protocol: >
+  Interval rounds targeting the fatigue cause of dropped hands: 20 s maximum
+  punch output, 40 s movement with guard held. The graded quantity is
+  guard_recovery_ms drift across intervals — the drill is passed by holding
+  form under fatigue, not by raw punch count (quality-weighted XP, docs/09 §4).
+success_criterion: interval-6 p75(guard_recovery_ms) ≤ 1.25 × interval-1 p75
+video_asset: TODO
+status: seed
