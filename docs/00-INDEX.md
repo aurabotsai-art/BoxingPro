@@ -27,6 +27,7 @@ Build the world's best AI boxing coach for a smartphone: **camera only** — no 
 | [10-SECURITY-PRIVACY](10-SECURITY-PRIVACY.md) | Threat model, biometric-data handling, compliance, on-device-first policy | Anything touching user video/data |
 | [11-ROADMAP](11-ROADMAP.md) | Phases, milestones, sprint plan, exit criteria, benchmarking gates | Sequencing work |
 | [12-RISK-REGISTER-RED-TEAM](12-RISK-REGISTER-RED-TEAM.md) | Risk register, failure modes, fallback systems, self-critique log | Before every phase gate |
+| [13-EXECUTION-ORDER](13-EXECUTION-ORDER.md) | Machine-executable track vs. owner's manual checklist, sync points, critical path | Deciding what happens next, and by whom |
 
 ## The ten load-bearing decisions
 
