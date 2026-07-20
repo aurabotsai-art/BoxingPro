@@ -1,0 +1,15 @@
+id: broken_rhythm_rounds
+name: Broken rhythm rounds
+targets_faults: [predictable_rhythm]
+mode: shadowboxing
+equipment: none
+space: small
+duration_default: 3x2min
+difficulty: 3
+protocol: >
+  App plays an irregular audio beat (deterministic per-round seed from session
+  id) and calls tempo switches: "double time… freeze… explode". Scored on
+  rhythm.predictability_index per round, target decreasing round over round.
+success_criterion: session rhythm.predictability_index < 0.6 in 2 of 3 rounds
+video_asset: TODO
+status: seed

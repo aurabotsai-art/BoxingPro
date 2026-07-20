@@ -1,0 +1,21 @@
+id: hands_drop_after_punch
+category: defense_during_offense
+title: Hands drop after punching
+detector: strike.guard_recovery_ms > adaptive(user, punch_class, base=550ms) OR strike.guard_recovery_ms == null (never returned)
+severity_model: frequency × 0.9   # near-max exposure cost; counters land in this window
+prerequisites: []
+root_causes: [habit, fatigue, balance_forward]
+cause_discriminators:
+  fatigue: fault rate in rounds 4+ > 1.5× rounds 1–2
+  balance_forward: COM ahead of lead ankle at strike apex in >40% of instances
+  habit: rate uniform across session, COM normal
+explanation: >
+  The half-second after your punch is when you get hit. Every clean counter
+  in boxing history lives in a lazy return. Speed of the return matters more
+  than speed of the shot — the punch scores points, the return keeps your teeth.
+fixes_by_cause:
+  habit: { drills: [mirror_return_high, prompt_double_return], cue: "snap it back" }
+  fatigue: { drills: [conditioning_output_intervals], cue: "hands home" }
+  balance_forward: { drills: [stance_reset_steps], cue: "sit back after" }
+tier: T0
+status: seed

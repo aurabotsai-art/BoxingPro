@@ -1,0 +1,16 @@
+id: mirror_return_high
+name: Snap-back rounds
+targets_faults: [hands_drop_after_punch]
+mode: shadowboxing
+equipment: none
+space: small
+duration_default: 3x2min
+difficulty: 2   # ramp: add combos (d3), add app-called counters after your return (d4)
+protocol: >
+  App calls single shots and doubles at moderate tempo. Scoring emphasis is
+  inverted for this drill: the punch is ungraded, the RETURN is graded. Live
+  cue fires only on guard_recovery_ms regression; end-of-round readout is
+  return speed, not punch speed.
+success_criterion: p75(strike.guard_recovery_ms) < 450 over 3 consecutive sessions
+video_asset: TODO
+status: seed

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://boxingpro.app/contracts/session_analysis.v1.schema.json",
+  "title": "SessionAnalysis v1",
+  "description": "Analysis output for one session at one tier (docs/04 §6). Tier-2 output supersedes Tier-1 by field. Every metric object carries value+confidence+tier so UI can enforce the honesty rules (docs/03 §1).",
+  "type": "object",
+  "required": ["version", "session_id", "tier", "pipeline_versions", "events", "faults", "aggregates"],
+  "properties": {
+    "version": { "const": 1 },
+    "session_id": { "type": "string", "format": "uuid" },
+    "tier": { "enum": ["live", "deep_lite", "deep"] },
+    "pipeline_versions": {
+      "type": "object",
+      "description": "Model/config versions that produced this analysis; required for reproducibility and re-analysis features.",
+      "required": ["metrics_core", "classifier", "fault_taxonomy"],
+      "properties": {
+        "metrics_core": { "type": "string" },
+        "classifier": { "type": "string" },
+        "fault_taxonomy": { "type": "string" },
+        "pose_model": { "type": "string" },
+        "lifting_model": { "type": ["string", "null"] }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "t_start_ms", "t_end_ms", "kind"],
+        "properties": {
+          "id": { "type": "string" },
+          "t_start_ms": { "type": "number" },
+          "t_end_ms": { "type": "number" },
+          "kind": { "enum": ["strike", "defense", "step", "guard_sample", "round_boundary"] },
+          "class": {
+            "type": ["string", "null"],
+            "description": "e.g. jab, cross, lead_hook, unclassified_strike, defensive_slip. Null for kinds without classes. unclassified_strike is a first-class honest outcome."
+          },
+          "class_confidence": { "type": ["number", "null"] },
+          "attributes": {
+            "type": "object",
+            "description": "Attribute heads (docs/05 §6): target, rotation, leap, commitment…",
+            "additionalProperties": true
+          },
+          "metrics": {
+            "type": "object",
+            "description": "Metric name → measurement. Absent key = unobservable for this event.",
+            "additionalProperties": { "$ref": "#/$defs/measurement" }
+          }
+        }
+      }
+    },
+    "faults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fault_id", "severity", "frequency", "evidence_event_ids"],
+        "properties": {
+          "fault_id": { "type": "string", "description": "key into content/faults taxonomy" },
+          "severity": { "type": "number", "minimum": 0, "maximum": 1 },
+          "frequency": { "type": "number", "description": "occurrences per opportunity, 0..1" },
+          "cause_estimate": { "type": ["string", "null"] },
+          "evidence_event_ids": { "type": "array", "items": { "type": "string" } },
+          "priority_score": { "type": ["number", "null"], "description": "output of docs/06 §3; null until prioritizer runs" }
+        }
+      }
+    },
+    "aggregates": {
+      "type": "object",
+      "description": "Session-level rollups: counts by class, rhythm indexes, stance tracks, composite scores. Composite scores must list contributing_metrics.",
+      "additionalProperties": { "$ref": "#/$defs/measurement" }
+    }
+  },
+  "$defs": {
+    "measurement": {
+      "type": "object",
+      "required": ["value", "tier"],
+      "properties": {
+        "value": { "type": ["number", "string", "boolean"] },
+        "unit": { "type": ["string", "null"], "description": "SI units or null for indexes. 'Power Index' style proxies MUST use unit=null (docs/03 §5)." },
+        "tier": { "enum": ["T0", "T1", "T2", "T3"] },
+        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "range": {
+          "type": ["array", "null"],
+          "items": { "type": "number" },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Honest interval for T1+ estimates; UI renders this, not fake precision."
+        },
+        "observed_frac": { "type": ["number", "null"], "description": "fraction of relevant frames where inputs were observed" },
+        "contributing_metrics": { "type": ["array", "null"], "items": { "type": "string" } }
+      }
+    }
+  }
+}

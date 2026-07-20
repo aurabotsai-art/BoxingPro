@@ -13,7 +13,7 @@ Tech spikes only; throwaway code allowed; decisions documented as ADR appendices
 | S0.3 Event detector | Wrist-kinematics punch detection recall on scripted footage | Detector v0 + thresholds |
 | S0.4 Bootstrap dataset | P0 collection: founder + local boxers, scripted matrix ([07](07-DATA-STRATEGY-MLOPS.md) §2) | ~10k labeled reps + labeler tool v0 |
 | S0.5 Classifier v0 | Core-6 F1 at 60fps on held-out set | Go/no-go evidence |
-| S0.6 Metrics core toolchain | C++ vs Rust bindings ergonomics (Swift/Kotlin/server) | Language decision |
+| S0.6 Metrics core toolchain | ✅ **Done: Rust** (ADR-001, docs/04). `core/` crate live: types, One-Euro filter, geometry/COM, strike detection, per-strike metrics — 12 tests incl. synthetic ground-truth recovery and the 30/60/120fps accuracy ablation | Language decision |
 | S0.7 3D lifting eval | RQ3: rotation-angle fidelity vs side-view ground truth | Tier-2 pipeline decision |
 
 **GATE G0 (product viability):** on mid-tier iPhone: 60fps sustained pose ≥10 min; punch-event recall ≥95% scripted; core-6 F1 ≥85% (v0 bar); hand-speed estimates within ±15% of HFR-derived ground truth. **Miss badly → pivot conversation** (e.g., bag-mounted-phone product, drill-only product) happens here, cheaply, not after a year of building.

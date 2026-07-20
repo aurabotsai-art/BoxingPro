@@ -2,7 +2,19 @@
 
 **The world's best AI boxing coach — phone camera only.** No sensors, no gloves, no trackers. BoxingPro watches you train (shadowboxing, heavy bag, footwork, defense), analyzes every movement with computer vision, and coaches you like an elite trainer: what's breaking down, *why* it matters, and exactly how to fix it — then runs the training plan that gets you there.
 
-> **Status: Planning phase.** No implementation yet, by design. The complete planning suite lives in [`docs/`](docs/00-INDEX.md) and must pass its red-team review before code begins.
+> **Status: Phase 0 (de-risking) in progress.** The planning suite in [`docs/`](docs/00-INDEX.md) governs all work. Environment-independent groundwork is built; device-dependent spikes (pose bake-off, dataset bootstrap) are next.
+
+## Repository layout
+
+```
+docs/        Planning suite (00-INDEX.md is the map) — binding on all work
+core/        Metrics Core: shared Rust biomechanics library (zero deps, golden tests)
+contracts/   Versioned JSON Schemas: SkeletonArchive, SessionAnalysis, CoachOutput
+content/     Coaching knowledge as data: fault taxonomy + drill library (YAML)
+supabase/    Database migrations (Postgres + RLS per docs/08)
+```
+
+Verify the core: `cd core && cargo test` (also `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` — CI enforces all three).
 
 ## Planning suite
 

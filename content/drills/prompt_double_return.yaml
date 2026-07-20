@@ -1,0 +1,16 @@
+id: prompt_double_return
+name: Punish the lazy return
+targets_faults: [hands_drop_after_punch]
+mode: reaction
+equipment: none
+space: small
+duration_default: 3x90s
+difficulty: 4
+protocol: >
+  App calls a shot; within 600ms of the user's strike apex it randomly (30%,
+  deterministic seed) calls "slip!" — simulating the counter that lives in a
+  slow return. Defensive response only counts if the guard was already
+  recovered when the call fired. Makes the cost of the fault visceral.
+success_criterion: defensive-response success rate > 70% with p75(guard_recovery_ms) < 450
+video_asset: TODO
+status: seed

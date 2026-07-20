@@ -1,0 +1,19 @@
+id: predictable_rhythm
+category: rhythm
+title: Predictable rhythm
+detector: rhythm.predictability_index > adaptive(user, base=0.75) over session
+severity_model: predictability_index × 0.6
+prerequisites: []
+root_causes: [metronome_bounce, fixed_combo_cadence]
+cause_discriminators:
+  metronome_bounce: bounce cadence spectral peak sharpness > threshold
+  fixed_combo_cadence: inter-strike interval variance below population p20
+explanation: >
+  A fighter on a metronome is a fighter who can be timed. If your bounce, your
+  jab, and your slip all arrive on the same beat, a good opponent doesn't need
+  to be faster than you — just to count to two. Broken rhythm is a weapon.
+fixes_by_cause:
+  metronome_bounce: { drills: [broken_rhythm_rounds], cue: "change the beat" }
+  fixed_combo_cadence: { drills: [prompt_random_combos], cue: "mix the tempo" }
+tier: T1
+status: seed

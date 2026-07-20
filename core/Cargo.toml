@@ -1,0 +1,13 @@
+[package]
+name = "boxingpro-core"
+version = "0.1.0"
+edition = "2021"
+description = "BoxingPro shared Metrics Core: deterministic post-keypoint biomechanics. Zero dependencies by design — this crate must compile identically for iOS (via swift-bridge/uniffi), Android (JNI), server (native/WASM)."
+license = "UNLICENSED"
+
+[dependencies]
+# Intentionally empty. Determinism and portability outrank convenience here.
+# Any proposed dependency needs an ADR in docs/04-SYSTEM-ARCHITECTURE.md.
+
+[profile.release]
+lto = true

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://boxingpro.app/contracts/skeleton_archive.v1.schema.json",
+  "title": "SkeletonArchive v1",
+  "description": "Canonical per-session keypoint stream (docs/04 §6). Produced by Tier-1 stage 3; consumed by Metrics Core, Tier 2, and the data flywheel. Production encoding is a binary flat layout; this schema defines the logical structure and the JSON interchange form used by tooling and tests. Joint order matches boxingpro-core types::Joint and is append-only.",
+  "type": "object",
+  "required": ["version", "session_id", "capture", "calibration_ref", "frames"],
+  "properties": {
+    "version": { "const": 1 },
+    "session_id": { "type": "string", "format": "uuid" },
+    "capture": {
+      "type": "object",
+      "required": ["fps_nominal", "width", "height", "pose_model_id", "device_model"],
+      "properties": {
+        "fps_nominal": { "type": "number" },
+        "width": { "type": "integer" },
+        "height": { "type": "integer" },
+        "pose_model_id": { "type": "string", "description": "e.g. apple-vision-3d@ios18, rtmpose-m-coreml@1.2.0" },
+        "device_model": { "type": "string" },
+        "framing_quality": { "type": "number", "minimum": 0, "maximum": 1 },
+        "thermal_events": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "calibration_ref": {
+      "type": "object",
+      "required": ["body_profile_id", "scale_anchor"],
+      "properties": {
+        "body_profile_id": { "type": "string", "format": "uuid" },
+        "scale_anchor": { "enum": ["user_stated", "reference_scan", "ar_lidar", "uncalibrated"] }
+      }
+    },
+    "coordinate_space": {
+      "enum": ["camera_metric", "camera_normalized"],
+      "default": "camera_metric",
+      "description": "camera_metric requires calibration; camera_normalized (0..1 image coords) is the uncalibrated fallback and blocks metric-unit downstream metrics."
+    },
+    "frames": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["t_ms", "joints"],
+        "properties": {
+          "t_ms": { "type": "number" },
+          "joints": {
+            "type": "array",
+            "minItems": 21,
+            "maxItems": 21,
+            "items": {
+              "oneOf": [
+                { "type": "null", "description": "unobserved — never fabricated" },
+                {
+                  "type": "object",
+                  "required": ["x", "y", "c"],
+                  "properties": {
+                    "x": { "type": "number" },
+                    "y": { "type": "number" },
+                    "z": { "type": ["number", "null"] },
+                    "c": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "interp": { "type": "boolean", "default": false, "description": "true when gap-filled by ≤3-frame interpolation (docs/05 §3)" }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

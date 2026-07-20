@@ -1,0 +1,15 @@
+id: range_marker_jabs
+name: Range discipline jabs
+targets_faults: [overextension]
+mode: technique
+equipment: none
+space: small
+duration_default: 3x90s
+difficulty: 1
+protocol: >
+  Calibration places a virtual range marker at 95% of the user's measured
+  reach. App calls jabs; extension_frac is graded against the 0.90–1.00 band —
+  over the band scores worse than under it. HFR capture if available.
+success_criterion: p90(strike.extension_frac on jab) in [0.90, 1.02] within 2 sessions
+video_asset: TODO
+status: seed

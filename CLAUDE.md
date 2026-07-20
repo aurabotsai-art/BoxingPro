@@ -4,7 +4,9 @@
 
 An AI boxing coach for smartphones using **only the phone camera** (no sensors/hardware): real-time pose-based analysis of stance, punches, defense, footwork and rhythm, plus deep post-session "film study" and a periodized coaching engine.
 
-**Current status: planning phase.** The full planning suite is in `docs/` (start at `docs/00-INDEX.md`). No implementation until the suite's red-team open items (docs/12 §3) are closed and Phase 0 begins.
+**Current status: Phase 0 in progress.** The planning suite in `docs/` (start at `docs/00-INDEX.md`) governs all work. Built so far: `core/` (Rust Metrics Core — spike S0.6 done, ADR-001/002 in docs/04), `contracts/` (the three v1 JSON Schemas), `content/` (fault/drill seeds), `supabase/migrations/` (schema v1), CI (fmt+clippy+tests+schema validation). Remaining Phase-0 spikes (S0.1–S0.5, S0.7) need physical devices and collected footage. Red-team open items O1–O4 (docs/12 §3) still block Phase 1.
+
+Verify before committing core changes: `cd core && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
 
 ## Non-negotiable rules for any session in this repo
 

@@ -1,0 +1,19 @@
+id: overextension
+category: offense_mechanics
+title: Overreaching on straight punches
+detector: strike.extension_frac > 1.02 on classes [jab, cross]
+severity_model: frequency × 0.7 × mean(extension_frac - 1.0) × 10
+prerequisites: [stance_too_narrow]   # fix the base before the reach
+root_causes: [range_misjudgment, lunging]
+cause_discriminators:
+  lunging: lead-foot airborne or COM displacement > 0.15×height during strike
+  range_misjudgment: feet planted, arm alone overreaching
+explanation: >
+  Reaching past your structure kills the punch twice: nothing behind it when it
+  lands, and your balance is donated to the opponent. Punches end with a bent
+  structure or they end with you falling into the counter.
+fixes_by_cause:
+  range_misjudgment: { drills: [range_marker_jabs], cue: "let it come to you" }
+  lunging: { drills: [step_jab_sync], cue: "feet first" }
+tier: T0
+status: seed

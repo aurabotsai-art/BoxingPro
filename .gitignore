@@ -16,3 +16,7 @@ dist/
 *.log
 .vercel
 .supabase
+
+# Rust
+core/target/
+Cargo.lock

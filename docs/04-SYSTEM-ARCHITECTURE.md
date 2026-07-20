@@ -89,3 +89,28 @@ These three schemas are the API between every subsystem; they get golden-file te
 - **Metrics Core:** pure-function unit tests with synthetic skeletons (known angles/velocities in, exact expected numbers out).
 - **Device lab:** minimum matrix = iPhone SE-class (floor), current base iPhone, current Pro; fps/thermal/battery benchmarks per release ([11](11-ROADMAP.md) gates).
 - **Field realism suite:** dark clothing, gloves, low light, cluttered background, partial framing — accuracy measured per condition, published internally as the honesty scorecard.
+
+---
+
+## ADRs
+
+### ADR-001 (2026-07-20) — Metrics Core language: Rust
+
+Spike S0.6 resolved. **Rust** over C++ for the shared Metrics Core (`core/`):
+memory safety without a GC (real-time audio/video adjacency), first-class test
+tooling (the golden-file strategy lives or dies on cheap tests), zero-dependency
+`no-I/O` crate keeps the portability surface minimal, and mature binding paths
+(swift-bridge/UniFFI for iOS, JNI for Android, native/WASM for server). C++
+retained no advantage for pure math with no legacy code to link. The crate is
+dependency-free by policy; adding any dependency requires a new ADR.
+
+### ADR-002 (2026-07-20) — Strike detection: out+return merged as one event
+
+The kinematic detector (hysteresis on wrist speed) naturally produces two
+bursts per punch — extension and retraction — separated by the near-zero-speed
+apex. These are merged into a single strike candidate when the gap is below
+`merge_gap_ms` (60 ms default). Rationale: a punch *is* out-and-back; guard
+recovery is measured from the apex within the same event; and the classifier
+receives one window per punch. Consequence: genuine double-jabs must exceed
+the merge gap to count as two — verified acceptable at 60fps in core tests;
+re-examined against real footage in S0.3.

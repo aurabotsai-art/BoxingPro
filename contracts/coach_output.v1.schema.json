@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://boxingpro.app/contracts/coach_output.v1.schema.json",
+  "title": "CoachOutput v1",
+  "description": "Structured coaching output (docs/04 §6, docs/06 §6). Produced by the Coach Brain (deterministic engine + Claude narration). Validation gate: every number appearing in any narrative string must exist in the source SessionAnalysis (echo-check); schema-invalid output is regenerated, then falls back to template rendering.",
+  "type": "object",
+  "required": ["version", "session_id", "kind", "source_analysis_id", "blocks"],
+  "properties": {
+    "version": { "const": 1 },
+    "session_id": { "type": "string", "format": "uuid" },
+    "kind": { "enum": ["film_study", "plan_update", "live_cue_pack", "chat_reply"] },
+    "source_analysis_id": { "type": "string" },
+    "generator": {
+      "type": "object",
+      "properties": {
+        "llm_model": { "type": ["string", "null"], "description": "null when template-rendered (LLM-unavailable fallback, docs/12 §2)" },
+        "prompt_version": { "type": ["string", "null"] },
+        "persona": { "type": ["string", "null"], "description": "technician | motivator | old_school" }
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "description": "Ordered renderable blocks. Film study convention (docs/09 §1.4): praise → primary_focus → evidence → prescription.",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": { "enum": ["praise", "primary_focus", "secondary_mention", "evidence", "prescription", "narrative", "cue", "question_reply"] },
+          "text": { "type": ["string", "null"], "description": "Coach voice. May reference numbers only via {metric:...} placeholders resolved at render time — this is what makes the echo-check mechanical." },
+          "fault_id": { "type": ["string", "null"] },
+          "evidence_event_ids": { "type": ["array", "null"], "items": { "type": "string" } },
+          "drill_ids": {
+            "type": ["array", "null"],
+            "items": { "type": "string" },
+            "description": "Must exist in content/drills. The LLM selects from provided candidates; it cannot invent drills."
+          },
+          "metric_refs": { "type": ["array", "null"], "items": { "type": "string" } }
+        }
+      }
+    },
+    "plan_delta": {
+      "type": ["object", "null"],
+      "description": "For kind=plan_update: structured changes to the training plan.",
+      "properties": {
+        "horizon": { "enum": ["day", "week", "month", "camp"] },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["day", "drill_id"],
+            "properties": {
+              "day": { "type": "string", "format": "date" },
+              "drill_id": { "type": "string" },
+              "params": { "type": "object", "additionalProperties": true },
+              "rationale_fault_id": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}
