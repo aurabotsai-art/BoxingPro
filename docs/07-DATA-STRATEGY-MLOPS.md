@@ -15,12 +15,30 @@ Primary unit: **keypoint sequence windows** (not raw video — smaller, privacy-
 | Phase | Source | Target volume | Notes |
 |---|---|---|---|
 | P0 Bootstrap | Founder + 5–10 local boxers/coaches, scripted sessions (every class × stance × speed × 3 angles × conditions matrix) | ~10k labeled reps | Enough for v1 core-6 classifier; scripted = labels nearly free |
-| P1 Public/licensed video | Boxing tutorial/training footage run through server pose → weak labels via scripts/titles, human-verified | +20k reps | Diversity of bodies/styles; verify licensing per source; keypoints-only retention |
+| P1 Public/licensed video | Boxing tutorial/training footage run through server pose → weak labels via scripts/titles, human-verified | +20k reps | Diversity of bodies/styles; verify licensing per source; keypoints-only retention. YouTube protocol in §2.1 |
 | P2 Beta flywheel | Opt-in users: auto-detected events → in-app "was this a jab?" micro-confirmations + the "wrong detection" button ([01](01-PRODUCT-VISION.md) §9 trust metric = labeling stream) | +100k reps | Active learning: upload only low-confidence/high-novelty windows (keypoints only, consented) |
 | P3 Pro sessions | Paid capture days with amateur/pro fighters + coach labeling | Quality gold set | Doubles as marketing content; grade-5 exemplars for "ideal form" references |
 | Synthetic | Mocap-driven (licensed boxing mocap packs + retargeting) rendered to keypoints with camera/noise simulation | Augmentation only | Great for rare classes & viewpoint coverage; never test-set |
 
 Golden test set (from P0+P3, coach-labeled, condition-stratified, ~2k reps) is **frozen per release** and never trained on.
+
+### 2.1 YouTube footage protocol (owner-approved source, 2026-07-20)
+
+YouTube is a real accelerator for P1 — used with eyes open about four hard limits:
+
+**What it's good for (use aggressively):**
+1. **Class diversity for the classifier** — tutorials, technique breakdowns, shadowboxing demos across thousands of bodies, stances, styles. Weak labels from titles/chapters ("how to throw a check hook"), human-verified in the labeler.
+2. **Elite-form reference ranges** — "best of the best" reps define the *ideal* end of each metric's range (kinetic-chain timing, guard discipline) that fault thresholds and drill success criteria calibrate against.
+3. **Style archetype vectors** (docs/06 §5) — famous fighters' public footage is exactly how the hand-built style profiles get their numbers.
+4. **Pose-model stress testing** (S0.1) — varied lighting/clothing/angles for wrist-retention benchmarks.
+
+**What it cannot do (the trap):**
+1. **Domain mismatch** — our deployment input is a *static phone camera, full body, one amateur, home lighting*. Broadcast/tutorial footage is moving cameras, cuts every few seconds, ring lighting, cropped framings, multiple people. A classifier trained mostly on YouTube will underperform on the product's actual input. Rule: **YouTube ≤50% of training mix; the deployment-matched P0/P2 sets anchor the distribution; the golden set stays product-conditions only.**
+2. **Elite bias** — champions don't drop their hands. Fault detection learns from *flawed* reps, which best-of-best footage doesn't contain. Novice/intermediate footage (including "fix your jab" critique videos) matters more than highlight reels.
+3. **No ground truth** — accuracy claims (±X% hand speed) need known-truth slow-mo of the *same rep*; impossible from YouTube. Ground-truth clips must come from our own capture.
+4. **Licensing** — downloading YouTube content is against its ToS and most videos are copyrighted. Policy: prefer **Creative-Commons-licensed** videos (YouTube search filter) and explicitly licensed/partner content; retain **keypoints only, never the video**; every source logged in the license registry with URL, license, and access date; nothing from this pool is ever redistributed or shown in-product. Counsel reviews this posture in the M7 consult (docs/13). Sources that fail the check get dropped from training at the next cycle — the registry makes that mechanical.
+
+**Effect on the owner's filming job (docs/13 M2):** shrinks, not disappears. Still needed from your camera: (a) ~30–60 min of *you* (and anyone you can recruit) shadowboxing in real product conditions — static phone, home lighting, deliberate good AND bad reps per my shot list; (b) native-camera slow-mo reference clips for ground truth. That's one afternoon, not a production shoot.
 
 ## 3. Labeling infrastructure
 
