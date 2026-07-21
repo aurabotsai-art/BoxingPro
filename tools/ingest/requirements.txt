@@ -1,0 +1,5 @@
+yt-dlp
+mediapipe>=0.10
+opencv-python
+pyyaml
+jsonschema

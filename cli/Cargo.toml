@@ -1,0 +1,15 @@
+[package]
+name = "boxingpro-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Analysis CLI: SkeletonArchive JSON in, SessionAnalysis JSON out, via the shared Metrics Core. Serialization lives HERE (ADR-004) — the core crate stays zero-dependency."
+license = "UNLICENSED"
+
+[[bin]]
+name = "boxingpro"
+path = "src/main.rs"
+
+[dependencies]
+boxingpro-core = { path = "../core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

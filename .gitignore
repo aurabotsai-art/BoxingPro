@@ -20,3 +20,8 @@ dist/
 # Rust
 core/target/
 Cargo.lock
+
+# Ingest artifacts
+tools/ingest/*.task
+data/archives/
+/target/

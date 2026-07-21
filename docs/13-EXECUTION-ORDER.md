@@ -16,7 +16,7 @@ Already done (E0): planning suite docs/00–13 · Rust Metrics Core (types, filt
 | E2 | **Next.js app scaffold** | App Router + TypeScript + Tailwind PWA: camera capture, pose worker (MediaPipe Tasks), skeleton overlay, session flow, IndexedDB storage — built AND smoke-tested here with Playwright | Nothing |
 | E3 | **S0.1 browser pose bake-off (CI half)** | MediaPipe vs MoveNet vs ONNX-web RTMPose on Chromium against sample/synthetic footage; fps + wrist-retention tables | Real-footage half needs M2; phone-browser half needs M1 (5 min with your phone) |
 | E4 | **Combo assembler + guard sampler + telegraph primitives** | Remaining pure-math pipeline pieces in the core | Nothing |
-| E5 | **SkeletonArchive JSON I/O + analysis CLI runner** | archive → SessionAnalysis JSON through the full core; the harness footage drops into | Nothing |
+| E5 | ✅ **Done: ingestion tool + analysis CLI** | `tools/ingest/ingest.py` (video/registry → pose → schema-valid SkeletonArchive; verified end-to-end on real human footage) + `boxingpro analyze` / `synth-jab` CLI (archive → events/metrics/faults via the real core; verified against synthetic ground truth). YouTube downloads run on the owner's laptop — this cloud env's proxy blocks YouTube | Nothing |
 | E6 | **Data-collection kit** | Shot lists, scripted session matrix, consent drafts, filming checklist for M2 | Nothing |
 | E7 | **Prioritizer + template Coach Brain** | docs/06 §3 priority algorithm + deterministic CoachOutput renderer (LLM-fallback path first) | Nothing |
 | E8 | **Fault taxonomy → ~40, drills → ~60 (drafts)** | Full MVP knowledge base at `status: seed` until coach panel (M4) | Nothing to write |

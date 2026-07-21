@@ -7,22 +7,17 @@ on:
 
 jobs:
   metrics-core:
-    name: Metrics Core (fmt, clippy, tests)
+    name: Rust workspace (fmt, clippy, tests)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: core
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: core
-      - run: cargo fmt --check
-      - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test
+      - run: cargo fmt --check --all
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
 
   content:
     name: Content (fault/drill cross-reference lint)

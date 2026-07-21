@@ -92,7 +92,7 @@
   buckets: [class_tutorial, fault_exemplar]
   classes: [lead_hook]
   priority: 1
-  notes: "Faults to avoid" section = labeled flawed reps, rare and valuable.
+  notes: The "faults to avoid" section is labeled flawed reps — rare and valuable.
   license: unverified
 - id: yt_0gtMKaCJ5I8
   url: https://www.youtube.com/watch?v=0gtMKaCJ5I8
