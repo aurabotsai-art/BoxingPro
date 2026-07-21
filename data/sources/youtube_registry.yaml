@@ -1,0 +1,371 @@
+# YouTube source registry — curated 2026-07-20 (searches via web, view-count & relevance ranked).
+# Governed by docs/07 §2.1 and data/sources/README.md. license: unverified until the
+# per-video check is done and recorded. Do not ingest unverified entries.
+
+# ── Bucket: class_tutorial — jab / cross ─────────────────────────────────────
+- id: yt_71nmi6nGcrY
+  url: https://www.youtube.com/watch?v=71nmi6nGcrY
+  title: "How to Throw the Perfect Jab in Boxing"
+  channel: Tony Jeffries (Olympic bronze medalist)
+  buckets: [class_tutorial, elite_reference]
+  classes: [jab]
+  priority: 1
+  notes: High-view canonical jab tutorial; coach demonstrates clean isolated reps — dense weak labels.
+  license: unverified
+- id: yt_YsFK1MMDQgk
+  url: https://www.youtube.com/watch?v=YsFK1MMDQgk
+  title: "How to Punch: Jab & Cross Beginner Boxing Tutorial"
+  channel: FightCamp (Tommy Duquette)
+  buckets: [class_tutorial]
+  classes: [jab, cross]
+  priority: 1
+  notes: Step-by-step slow→full-speed reps; competitor content — reference only if license blocks ingestion.
+  license: unverified
+- id: yt_LZ433O7lU1A
+  url: https://www.youtube.com/watch?v=LZ433O7lU1A
+  title: "How To Throw Every PUNCH In Boxing (Complete Guide)"
+  buckets: [class_tutorial]
+  classes: [jab, cross, lead_hook, rear_hook, lead_uppercut, rear_uppercut]
+  priority: 1
+  notes: All core-6 in one chaptered video — chapter timestamps are free weak labels.
+  license: unverified
+- id: yt_fF-Xg62jf98
+  url: https://www.youtube.com/watch?v=fF-Xg62jf98
+  title: "How to throw a Cross in boxing (step by step for beginners)"
+  channel: Mike Gales / Everlast series
+  buckets: [class_tutorial]
+  classes: [cross]
+  priority: 2
+  license: unverified
+- id: yt_mS334URVH-o
+  url: https://www.youtube.com/watch?v=mS334URVH-o
+  title: "How To Throw The Perfect Cross Punch In Boxing"
+  buckets: [class_tutorial]
+  classes: [cross]
+  priority: 2
+  license: unverified
+- id: yt_WLqt5VnrSkk
+  url: https://www.youtube.com/watch?v=WLqt5VnrSkk
+  title: "How to Throw a Jab (step by step guide for Beginners)"
+  buckets: [class_tutorial]
+  classes: [jab]
+  priority: 2
+  notes: Older "Proper Boxing Technique" series — typically static camera, clean framing.
+  license: unverified
+- id: yt_JhkqSCahsNY
+  url: https://www.youtube.com/watch?v=JhkqSCahsNY
+  title: "Boxing Punches 1-6 Explained: Perfect Techniques"
+  channel: Oracle Boxing
+  buckets: [class_tutorial, elite_reference]
+  classes: [jab, cross, lead_hook, rear_hook, lead_uppercut, rear_uppercut]
+  priority: 1
+  notes: Numbered-punch system matches our class taxonomy directly.
+  license: unverified
+
+# ── Bucket: class_tutorial — hooks ───────────────────────────────────────────
+- id: yt_ywzNGhZi3hg
+  url: https://www.youtube.com/watch?v=ywzNGhZi3hg
+  title: "How to Throw the Perfect Hook | Boxing Basics for Beginners"
+  buckets: [class_tutorial]
+  classes: [lead_hook, rear_hook]
+  priority: 1
+  license: unverified
+- id: yt_1ZZncRfkt0A
+  url: https://www.youtube.com/watch?v=1ZZncRfkt0A
+  title: "Throw A Perfect Lead & Rear Hook | Beginner Boxing Lesson"
+  buckets: [class_tutorial, fault_exemplar]
+  classes: [lead_hook, rear_hook]
+  priority: 1
+  notes: Explicitly covers common mistakes — dual-bucket value.
+  license: unverified
+- id: yt_UFVDcNDnpoU
+  url: https://www.youtube.com/watch?v=UFVDcNDnpoU
+  title: "Boxing Basics with Tony Jeffries: How to throw a hook punch"
+  channel: Tony Jeffries / Sanabul
+  buckets: [class_tutorial]
+  classes: [lead_hook]
+  priority: 2
+  license: unverified
+- id: yt_Hy94qxbdtvI
+  url: https://www.youtube.com/watch?v=Hy94qxbdtvI
+  title: "Left Hook Technique Tutorial — ranges, faults to avoid, head, body"
+  buckets: [class_tutorial, fault_exemplar]
+  classes: [lead_hook]
+  priority: 1
+  notes: "Faults to avoid" section = labeled flawed reps, rare and valuable.
+  license: unverified
+- id: yt_0gtMKaCJ5I8
+  url: https://www.youtube.com/watch?v=0gtMKaCJ5I8
+  title: "The Correct Way To Throw HOOKS in BOXING | Thumb Up or Down"
+  channel: Tony Jeffries
+  buckets: [class_tutorial]
+  classes: [lead_hook, rear_hook]
+  priority: 2
+  license: unverified
+
+# ── Bucket: class_tutorial — uppercuts ───────────────────────────────────────
+- id: yt_KcagWYVfvBg
+  url: https://www.youtube.com/watch?v=KcagWYVfvBg
+  title: "How To Throw A Proper Rear And Lead Uppercut | Slow Mo"
+  buckets: [class_tutorial, elite_reference]
+  classes: [lead_uppercut, rear_uppercut]
+  priority: 1
+  notes: Slow-motion demonstration — phase-boundary labeling (initiation/apex/recovery) is easy here.
+  license: unverified
+- id: yt_eBxn21FtqPg
+  url: https://www.youtube.com/watch?v=eBxn21FtqPg
+  title: "The Correct Way to Throw Uppercut"
+  buckets: [class_tutorial]
+  classes: [lead_uppercut, rear_uppercut]
+  priority: 2
+  license: unverified
+- id: yt_l2pH85lxG4M
+  url: https://www.youtube.com/watch?v=l2pH85lxG4M
+  title: "How To Rear Uppercut"
+  buckets: [class_tutorial]
+  classes: [rear_uppercut]
+  priority: 2
+  license: unverified
+
+# ── Bucket: fault_exemplar ───────────────────────────────────────────────────
+- id: yt_zwq8mhIlcsY
+  url: https://www.youtube.com/watch?v=zwq8mhIlcsY
+  title: "Boxing for Beginners 101 | Top 10 Mistakes"
+  buckets: [fault_exemplar]
+  faults: [stance_too_narrow, hands_drop_after_punch, overextension]
+  priority: 1
+  notes: Chaptered mistakes (losing the line, losing the front foot…) — coach demonstrates each flaw; maps to multiple taxonomy entries.
+  license: unverified
+- id: yt_K49hGXoXCUw
+  url: https://www.youtube.com/watch?v=K49hGXoXCUw
+  title: "Biggest MISTAKE in Boxing by Beginners and Professionals"
+  buckets: [fault_exemplar]
+  faults: [hands_drop_after_punch]
+  priority: 1
+  notes: Entire video about dropping the non-punching hand — direct exemplars for our flagship fault.
+  license: unverified
+- id: yt_AlPCk8kur3k
+  url: https://www.youtube.com/watch?v=AlPCk8kur3k
+  title: "3 Common Mistakes with the Cross & How to Fix"
+  buckets: [fault_exemplar]
+  faults: [overextension]
+  priority: 1
+  notes: Includes elbow-lift and overreach demonstrations with corrections — before/after pairs.
+  license: unverified
+- id: yt_dMa8l7nxH4o
+  url: https://www.youtube.com/watch?v=dMa8l7nxH4o
+  title: "Boxing footwork mistakes and how to fix them"
+  buckets: [fault_exemplar]
+  faults: [stance_too_narrow]
+  priority: 1
+  notes: Foot-crossing, narrow-base demonstrations for footwork fault thresholds.
+  license: unverified
+- id: yt_wnq2TEQ4K5c
+  url: https://www.youtube.com/watch?v=wnq2TEQ4K5c
+  title: "Top Boxing Mistakes Beginners Make (and How to Fix Them)"
+  buckets: [fault_exemplar]
+  priority: 2
+  license: unverified
+- id: yt_FVq7CO8Q8sU
+  url: https://www.youtube.com/watch?v=FVq7CO8Q8sU
+  title: "5 Mistakes of Beginner Boxers"
+  buckets: [fault_exemplar]
+  priority: 2
+  license: unverified
+- id: yt_nCGHzG3Pb60
+  url: https://www.youtube.com/watch?v=nCGHzG3Pb60
+  title: "Common Boxing Mistakes and How To Fix Them"
+  buckets: [fault_exemplar]
+  priority: 3
+  license: unverified
+
+# ── Bucket: class_tutorial — defense ─────────────────────────────────────────
+- id: yt_-cfSa-gBxtc
+  url: https://www.youtube.com/watch?v=-cfSa-gBxtc
+  title: "How To Slip Punches | Beginner Boxing Defense Training"
+  buckets: [class_tutorial]
+  classes: [defensive_slip]
+  priority: 1
+  license: unverified
+- id: yt_HVTTZI_7Lvw
+  url: https://www.youtube.com/watch?v=HVTTZI_7Lvw
+  title: "6 Head Movement Drills That Will Make You IMPOSSIBLE To Hit"
+  channel: Oracle Boxing
+  buckets: [class_tutorial]
+  classes: [defensive_slip, defensive_roll, defensive_duck]
+  priority: 1
+  notes: Multiple drill patterns — good class diversity per minute.
+  license: unverified
+- id: yt_mLKrcE0mo4E
+  url: https://www.youtube.com/watch?v=mLKrcE0mo4E
+  title: "Boxing Defense Drill | How To Roll A Punch"
+  buckets: [class_tutorial]
+  classes: [defensive_roll]
+  priority: 1
+  license: unverified
+- id: yt_nw2EvmMW8uY
+  url: https://www.youtube.com/watch?v=nw2EvmMW8uY
+  title: "Slip Line for Boxing | Complete Tutorial"
+  buckets: [class_tutorial]
+  classes: [defensive_slip]
+  priority: 2
+  license: unverified
+- id: yt_CR6Hwt4fbA4
+  url: https://www.youtube.com/watch?v=CR6Hwt4fbA4
+  title: "10 Minute Head Movement Boxing Home Work"
+  buckets: [class_tutorial, product_conditions]
+  classes: [defensive_slip, defensive_roll]
+  priority: 1
+  notes: Home-workout format — framing close to product conditions.
+  license: unverified
+- id: yt_s6rbldgxcnA
+  url: https://www.youtube.com/watch?v=s6rbldgxcnA
+  title: "How to MOVE your head FASTER in Boxing"
+  buckets: [class_tutorial]
+  classes: [defensive_slip]
+  priority: 3
+  license: unverified
+
+# ── Bucket: class_tutorial — footwork ────────────────────────────────────────
+- id: yt_hNclexRmDsY
+  url: https://www.youtube.com/watch?v=hNclexRmDsY
+  title: "How to Pivot in Boxing"
+  channel: Tony Jeffries
+  buckets: [class_tutorial]
+  classes: [pivot]
+  priority: 1
+  license: unverified
+- id: yt_YHF-u7YlEag
+  url: https://www.youtube.com/watch?v=YHF-u7YlEag
+  title: "Boxing Footwork | The Pivot Drill | Foundations of Boxing"
+  buckets: [class_tutorial]
+  classes: [pivot, step]
+  priority: 1
+  license: unverified
+- id: yt_72M0E5LM92M
+  url: https://www.youtube.com/watch?v=72M0E5LM92M
+  title: "How To Pivot in Boxing 101 | step by step Tutorial"
+  buckets: [class_tutorial]
+  classes: [pivot]
+  priority: 2
+  license: unverified
+- id: yt_wqnhKNrB7os
+  url: https://www.youtube.com/watch?v=wqnhKNrB7os
+  title: "How to Slip - Step - Pivot"
+  buckets: [class_tutorial]
+  classes: [defensive_slip, step, pivot]
+  priority: 1
+  notes: Compound sequences — tests event segmentation, not just classification.
+  license: unverified
+- id: yt_O47A0NFcvbM
+  url: https://www.youtube.com/watch?v=O47A0NFcvbM
+  title: "Pivot Tutorial | McLeod Scott Boxing"
+  buckets: [class_tutorial]
+  classes: [pivot]
+  priority: 3
+  license: unverified
+
+# ── Bucket: product_conditions (static camera, full body, continuous) ────────
+- id: yt_HLPU9Qk7ZVw
+  url: https://www.youtube.com/watch?v=HLPU9Qk7ZVw
+  title: "Follow along 30 Minute Shadow Boxing Workout"
+  channel: Nate Bower Fitness
+  buckets: [product_conditions, class_tutorial]
+  priority: 1
+  notes: Long continuous static-camera full-body shadowboxing — the closest public match to our deployment input; huge rep volume per video.
+  license: unverified
+- id: yt_dW0SRTg0sxk
+  url: https://www.youtube.com/watch?v=dW0SRTg0sxk
+  title: "Follow along 20 minute shadow boxing workout"
+  channel: Nate Bower Fitness
+  buckets: [product_conditions]
+  priority: 1
+  license: unverified
+- id: yt_9Yzke26tOXU
+  url: https://www.youtube.com/watch?v=9Yzke26tOXU
+  title: "UNCUT | Raw Continuous Follow-along Shadow Boxing Workout"
+  channel: Nate Bower Fitness
+  buckets: [product_conditions]
+  priority: 1
+  notes: Explicitly uncut/continuous — zero edit-cut contamination for temporal models.
+  license: unverified
+- id: yt_bz3Bv1y-mYo
+  url: https://www.youtube.com/watch?v=bz3Bv1y-mYo
+  title: "Shadow Boxing Workout | Follow Along (20 rounds)"
+  buckets: [product_conditions]
+  priority: 2
+  license: unverified
+- id: yt__oAuk-KUrUQ
+  url: https://www.youtube.com/watch?v=_oAuk-KUrUQ
+  title: "Shadowboxing Routine for Head Movement (Follow Along)"
+  buckets: [product_conditions]
+  classes: [defensive_slip, defensive_roll]
+  priority: 1
+  notes: Defense-heavy continuous footage — rarest class coverage in product-like framing.
+  license: unverified
+- id: yt_iNfXCenFZGY
+  url: https://www.youtube.com/watch?v=iNfXCenFZGY
+  title: "15 Minute Beginner Shadowboxing Workout"
+  buckets: [product_conditions]
+  priority: 2
+  notes: Beginner-level mover — counters the elite bias in the rest of the pool.
+  license: unverified
+- id: yt_BF4MQ9mhQOk
+  url: https://www.youtube.com/watch?v=BF4MQ9mhQOk
+  title: "FULL Follow Along Shadow Boxing Workout - Cardio AND Fluidity"
+  buckets: [product_conditions]
+  priority: 2
+  license: unverified
+
+# ── Bucket: elite_reference (viewing/calibration; ingest only if cleared) ────
+- id: yt_LViFS7EMdi4
+  url: https://www.youtube.com/watch?v=LViFS7EMdi4
+  title: "The Perfect Punch: Body Rotation Biomechanics"
+  channel: fightTIPS
+  buckets: [elite_reference]
+  priority: 1
+  notes: Hip/shoulder rotation biomechanics — calibrates our kinetic-chain metric definitions and thresholds.
+  license: unverified
+
+# ── Bucket: style_archetype (reference viewing ONLY — no ingestion) ──────────
+- id: yt_E9akzy0xeMU
+  url: https://www.youtube.com/watch?v=E9akzy0xeMU
+  title: "All 12 Boxing Styles Explained"
+  buckets: [style_archetype]
+  priority: 1
+  notes: Chaptered per style — primary source for archetype feature-vector authoring (docs/06 §5).
+  license: reference_only
+- id: yt_vN6c-fa2AOU
+  url: https://www.youtube.com/watch?v=vN6c-fa2AOU
+  title: "How to Deal with Every Style in Boxing | The 4 Styles Explained"
+  buckets: [style_archetype]
+  priority: 1
+  notes: Style-vs-style tactics — feeds fight-simulation scenario design too.
+  license: reference_only
+- id: yt_XMmVd3A7huI
+  url: https://www.youtube.com/watch?v=XMmVd3A7huI
+  title: "Every Boxing Archetype Explained Like You're 10"
+  buckets: [style_archetype]
+  priority: 2
+  license: reference_only
+- id: yt_hq7evFpmVek
+  url: https://www.youtube.com/watch?v=hq7evFpmVek
+  title: "Floyd Mayweather Defense Tactics — Technique Breakdown"
+  buckets: [style_archetype]
+  priority: 2
+  notes: Shell/shoulder-roll archetype parameters.
+  license: reference_only
+- id: yt_457ezBDaRUY
+  url: https://www.youtube.com/watch?v=457ezBDaRUY
+  title: "Muhammad Ali's Footwork & Jab - TECHNIQUE BREAKDOWN"
+  buckets: [style_archetype]
+  priority: 2
+  notes: Out-boxer archetype parameters.
+  license: reference_only
+- id: yt_hfG5dZOiyws
+  url: https://www.youtube.com/watch?v=hfG5dZOiyws
+  title: "Mike Tyson's Left Hook Breakdown"
+  buckets: [style_archetype]
+  priority: 2
+  notes: Peekaboo/swarmer archetype parameters.
+  license: reference_only
