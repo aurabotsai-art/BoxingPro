@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from "next";
 export const metadata: Metadata = {
   title: "BoxingPro",
   description: "AI boxing coach — camera only.",
+  manifest: "/manifest.json",
+  icons: { icon: "/icon.svg" },
 };
 
 export const viewport: Viewport = {

@@ -68,6 +68,12 @@ export default function SessionPage() {
         await core.default({ module_or_path: "/core/boxingpro_core_wasm_bg.wasm" });
         const analyzer = new core.SessionAnalyzer();
 
+        // Keep the screen awake during sessions (ADR-003 cost #4).
+        try {
+          await (navigator as Navigator & { wakeLock?: { request: (t: string) => Promise<unknown> } })
+            .wakeLock?.request("screen");
+        } catch { /* unsupported browsers train with screen-dim settings */ }
+
         setHud((h) => ({ ...h, status: "requesting camera…" }));
         stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } },

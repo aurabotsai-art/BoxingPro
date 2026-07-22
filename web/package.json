@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "bash scripts/prepare-assets.sh && next build",
     "start": "next start",
     "prepare-assets": "bash scripts/prepare-assets.sh"
   },
