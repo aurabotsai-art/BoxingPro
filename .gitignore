@@ -25,3 +25,10 @@ Cargo.lock
 tools/ingest/*.task
 data/archives/
 /target/
+web/node_modules/
+web/.next/
+web/public/mediapipe/
+web/public/models/
+web/lib/core/
+web/next-env.d.ts
+*.y4m

@@ -12,8 +12,8 @@ Already done (E0): planning suite docs/00–13 · Rust Metrics Core (types, filt
 
 | # | Item | What it is | Needs from you |
 |---|---|---|---|
-| E1 | **wasm-bindgen wrapper + JS API for Metrics Core** | `core-wasm/` crate exposing the pipeline to the browser; npm-consumable package with TypeScript types | Nothing |
-| E2 | **Next.js app scaffold** | App Router + TypeScript + Tailwind PWA: camera capture, pose worker (MediaPipe Tasks), skeleton overlay, session flow, IndexedDB storage — built AND smoke-tested here with Playwright | Nothing |
+| E1 | ✅ **Done** | `core-wasm/` crate → wasm-bindgen web bindings with TS types (`web/lib/core/`); SessionAnalyzer API (push_frame / strike_count / last_strike_json / has_profile) | Nothing |
+| E2 | ✅ **v0 done** | `web/`: Next.js App Router + TS; camera → MediaPipe pose → canonical mapping → Rust WASM core → live HUD (measured fps, pose, strikes, last-strike metrics) + skeleton overlay. E2E-tested headlessly: fake camera fed real human footage → status live, pose ✓, wasm profile locked, 0 false strikes. Session flow/IndexedDB/PWA manifest are v1 items | Nothing; M3 unlocks E10 deploy |
 | E3 | **S0.1 browser pose bake-off (CI half)** | MediaPipe vs MoveNet vs ONNX-web RTMPose on Chromium against sample/synthetic footage; fps + wrist-retention tables | Real-footage half needs M2; phone-browser half needs M1 (5 min with your phone) |
 | E4 | ✅ **Done: combos + guard + telegraph** | `core/src/{combos,guard,telegraph}.rs`: combo assembly with boxing notation ("1-1-2") + inter-strike cadence, guard-state sampling with honesty gates, pre-punch hand-dip telegraph detection. 28 core tests | Nothing |
 | E5 | ✅ **Done: ingestion tool + analysis CLI** | `tools/ingest/ingest.py` (video/registry → pose → schema-valid SkeletonArchive; verified end-to-end on real human footage) + `boxingpro analyze` / `synth-jab` CLI (archive → events/metrics/faults via the real core; verified against synthetic ground truth). YouTube downloads run on the owner's laptop — this cloud env's proxy blocks YouTube | Nothing |

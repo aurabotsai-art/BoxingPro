@@ -1,0 +1,13 @@
+[package]
+name = "boxingpro-core-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "wasm-bindgen browser API over the Metrics Core (ADR-003/ADR-004: bindings live outside the zero-dep core). Build: cargo build -p boxingpro-core-wasm --target wasm32-unknown-unknown --release && wasm-bindgen --target web."
+license = "UNLICENSED"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+boxingpro-core = { path = "../core" }
+wasm-bindgen = "=0.2.104"
