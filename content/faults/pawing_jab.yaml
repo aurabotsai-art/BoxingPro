@@ -1,0 +1,20 @@
+id: pawing_jab
+category: offense_mechanics
+title: Pawing, non-committal jab
+detector: jab peak_speed < 0.6 × user's calibrated fast-jab baseline on majority of jabs
+severity_model: frequency × 0.4
+trainability: 0.8
+prerequisites: []
+root_causes: [range_finding_habit, overcaution]
+cause_discriminators:
+  range_finding_habit: paws cluster before committed shots (setup pattern — sometimes intentional!)
+  overcaution: paws with no follow-up
+explanation: >
+  A pawing jab teaches good opponents your timing for free. Deliberate range-
+  finders are a tool; a jab that is ALWAYS soft is a tell. The coach checks
+  intent before flagging this one — pattern context matters.
+fixes_by_cause:
+  overcaution: { drills: [range_marker_jabs], cue: "make it mean something" }
+  range_finding_habit: { drills: [prompt_random_combos], cue: "mix real ones in" }
+tier: T1
+status: seed

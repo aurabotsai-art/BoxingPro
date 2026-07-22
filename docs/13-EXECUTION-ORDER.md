@@ -17,14 +17,14 @@ Already done (E0): planning suite docs/00–13 · Rust Metrics Core (types, filt
 | E3 | **S0.1 browser pose bake-off (CI half)** | MediaPipe vs MoveNet vs ONNX-web RTMPose on Chromium against sample/synthetic footage; fps + wrist-retention tables | Real-footage half needs M2; phone-browser half needs M1 (5 min with your phone) |
 | E4 | ✅ **Done: combos + guard + telegraph** | `core/src/{combos,guard,telegraph}.rs`: combo assembly with boxing notation ("1-1-2") + inter-strike cadence, guard-state sampling with honesty gates, pre-punch hand-dip telegraph detection. 28 core tests | Nothing |
 | E5 | ✅ **Done: ingestion tool + analysis CLI** | `tools/ingest/ingest.py` (video/registry → pose → schema-valid SkeletonArchive; verified end-to-end on real human footage) + `boxingpro analyze` / `synth-jab` CLI (archive → events/metrics/faults via the real core; verified against synthetic ground truth). YouTube downloads run on the owner's laptop — this cloud env's proxy blocks YouTube | Nothing |
-| E6 | **Data-collection kit** | Shot lists, scripted session matrix, consent drafts, filming checklist for M2 | Nothing |
-| E7 | **Prioritizer + template Coach Brain** | docs/06 §3 priority algorithm + deterministic CoachOutput renderer (LLM-fallback path first) | Nothing |
-| E8 | **Fault taxonomy → ~40, drills → ~60 (drafts)** | Full MVP knowledge base at `status: seed` until coach panel (M4) | Nothing to write |
+| E6 | ✅ **Done** | `docs/14-DATA-COLLECTION-KIT.md` — full filming matrix (incl. deliberate-bad-reps and fatigue blocks), consent draft, handoff protocol | Nothing |
+| E7 | ✅ **Done** | `core/src/prioritize.rs` (tested: gating, novelty rotation, partitioning) + `coach_brain/render_template.py` (analysis→CoachOutput v1, schema-validated, zero hallucination surface) | Nothing |
+| E8 | ◐ **14 faults / 14 drills** (all 7 categories covered, linted, trainability-scored) | Grows toward ~40/~60 alongside classifier capability; remaining entries need coach-panel input to stay honest (M4) | M4 for depth |
 | E9 | ✅ **Done: labeling tool v0** | `tools/labeler/index.html` — zero-build single-file labeler: skeleton playback, analysis-event pre-seeding, hotkey labeling, JSON export. Headless-smoke-tested with Playwright | Footage (M2) to use it on |
 | E10 | **Vercel deploy of the app** | Preview + production deploys via the Vercel connector; shareable URL for you to test on your phone | M3 (authorize connector) |
 | E11 | **Supabase provisioning** | Create project, apply migration, buckets, RLS verification | M3 (authorize connector + cost ok) |
-| E12 | **Claude Coach Brain + prompt/eval suite** | Prompts, few-shots, echo-check validator, ~100-case eval set | M5 (API key) to run evals |
-| E13 | **GPU worker skeleton → deploy** | Deep-tier job runner (dummy-pose end-to-end here) | M6 (GPU account) to deploy real models |
+| E12 | ◐ **Writable half done** | `coach_brain/prompts/film_study.md` + 5-case eval suite (already caught one real prioritization bug; runs against template path today) | M5 (API key) for the LLM path |
+| E13 | ◐ **Skeleton done** | `workers/deep_analysis/worker.py` (--once mode runs archives through the real CLI today; Supabase poll loop lands with E11) | M6 to deploy; E11 for queue |
 | E14 | **Classifier training pipeline → trained v0** | Training/eval/export code (dry on synthetic now); real training on labeled data | M2 → E9 labeling |
 | E15 | **Golden-clip CI harness** | Labeled clips wired into CI regression gates | M2 |
 

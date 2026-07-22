@@ -1,0 +1,19 @@
+id: squared_stance
+category: stance
+title: Squared-up stance
+detector: shoulder-line angle to camera within 15° of frontal while ankles level (stance tracks, view-aware)
+severity_model: frequency × 0.7
+trainability: 0.9
+prerequisites: []
+root_causes: [never_taught, squaring_during_combos]
+cause_discriminators:
+  never_taught: squared from round start
+  squaring_during_combos: bladed at rest, squares during exchanges
+explanation: >
+  Squared hips show the opponent your whole centerline — chin, solar plexus,
+  liver, all on the menu — and give your rear hand nothing to rotate from.
+fixes_by_cause:
+  never_taught: { drills: [stance_reset_steps], cue: "blade up" }
+  squaring_during_combos: { drills: [step_jab_sync], cue: "stay bladed" }
+tier: T1
+status: seed

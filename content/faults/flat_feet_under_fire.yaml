@@ -1,0 +1,20 @@
+id: flat_feet_under_fire
+category: footwork
+title: Flat feet during exchanges
+detector: rhythm.analyze returns None (no bounce cadence) during high-activity segments while steps are rare
+severity_model: flat-segment fraction × 0.5
+trainability: 0.8
+prerequisites: [stance_too_narrow]
+root_causes: [fatigue, planted_habit]
+cause_discriminators:
+  fatigue: cadence present early rounds, gone late
+  planted_habit: absent throughout
+explanation: >
+  Flat feet make you a filing cabinet: solid, stationary, easy to find.
+  Staying light isn't bouncing for show — it's keeping your exit ready
+  before you need it.
+fixes_by_cause:
+  planted_habit: { drills: [bounce_rhythm_rounds], cue: "stay light" }
+  fatigue: { drills: [conditioning_output_intervals], cue: "feet alive" }
+tier: T1
+status: seed

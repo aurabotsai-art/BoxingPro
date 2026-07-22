@@ -1,0 +1,27 @@
+{
+  "desc": "Corrupt/absurd inputs must not produce confident coaching",
+  "analysis": {
+    "version": 1,
+    "session_id": "c0ffee00-0000-0000-0000-000000000005",
+    "tier": "deep_lite",
+    "counts": {
+      "strikes": 0,
+      "frames": 50,
+      "duration_ms": 800
+    },
+    "faults": [
+      {
+        "fault_id": "nonexistent_fault_xyz",
+        "frequency": 2.5,
+        "evidence_t_ms": [],
+        "cause_estimate": null
+      }
+    ]
+  },
+  "expect": {
+    "block_types_exclude": [
+      "prescription"
+    ],
+    "unknown_faults_ignored": true
+  }
+}

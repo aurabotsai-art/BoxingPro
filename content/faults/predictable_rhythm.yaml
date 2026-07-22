@@ -3,6 +3,7 @@ category: rhythm
 title: Predictable rhythm
 detector: rhythm.predictability_index > adaptive(user, base=0.75) over session
 severity_model: predictability_index × 0.6
+trainability: 0.6
 prerequisites: []
 root_causes: [metronome_bounce, fixed_combo_cadence]
 cause_discriminators:

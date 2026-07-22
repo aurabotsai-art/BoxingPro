@@ -3,6 +3,7 @@ category: defense_during_offense
 title: Hands drop after punching
 detector: strike.guard_recovery_ms > adaptive(user, punch_class, base=550ms) OR strike.guard_recovery_ms == null (never returned)
 severity_model: frequency × 0.9   # near-max exposure cost; counters land in this window
+trainability: 0.8
 prerequisites: []
 root_causes: [habit, fatigue, balance_forward]
 cause_discriminators:

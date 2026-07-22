@@ -2,7 +2,7 @@
 
 Machine-readable coaching knowledge (docs/06-COACHING-ENGINE.md §2). Each YAML file is one fault. Detectors reference Metrics Core outputs by name; thresholds marked `adaptive` are scaled per-user from calibration baselines and skill level — thresholds are coaching policy and require coach-panel sign-off before changing.
 
-**Status: v0 seed (4 faults).** Target ~40 for MVP (docs/11 Phase 1). Cross-references (drills, prerequisites, root-cause↔fix pairing, Rust fault-id constants) are enforced by `tools/lint_content.py` in CI. Every fault must name: detector expression, severity model, root causes with discriminators, explanation ("why this loses fights"), and fixes-by-cause referencing real drill IDs in `content/drills/`.
+**Status: v0 seed (14 faults across all 7 categories).** Target ~40 for MVP (docs/11 Phase 1). Cross-references (drills, prerequisites, root-cause↔fix pairing, Rust fault-id constants) are enforced by `tools/lint_content.py` in CI. Every fault must name: detector expression, severity model, root causes with discriminators, explanation ("why this loses fights"), and fixes-by-cause referencing real drill IDs in `content/drills/`.
 
 Schema per file:
 

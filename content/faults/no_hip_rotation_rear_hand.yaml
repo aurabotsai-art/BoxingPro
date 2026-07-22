@@ -1,0 +1,20 @@
+id: no_hip_rotation_rear_hand
+category: offense_mechanics
+title: No hip rotation on the rear hand
+detector: hip-rotation angle at cross/rear-hook apex < adaptive threshold (Tier-2 3D lifting; coarse from front view — flagged)
+severity_model: frequency × 0.8
+trainability: 0.6
+prerequisites: [stance_too_narrow, squared_stance]
+root_causes: [arm_punching_habit, locked_rear_foot]
+cause_discriminators:
+  locked_rear_foot: rear heel never lifts at apex (heel keypoint track)
+  arm_punching_habit: heel lifts but hips lag shoulder rotation
+explanation: >
+  The rear hand without hips is a push, not a punch. Power starts at the
+  floor, turns through the hip, and arrives at the fist — skip the middle
+  and you're paying full exposure for half the punch.
+fixes_by_cause:
+  locked_rear_foot: { drills: [hip_snap_pivots], cue: "turn the heel" }
+  arm_punching_habit: { drills: [hip_snap_pivots, step_jab_sync], cue: "hip first" }
+tier: T1
+status: seed

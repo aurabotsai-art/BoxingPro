@@ -1,0 +1,20 @@
+id: fatigue_form_collapse
+category: conditioning
+title: Form collapses under fatigue
+detector: composite fault rate (guard recovery, extension, stance width) in final third of session > 1.5 × first third
+severity_model: collapse ratio − 1.0, clamped 0..1
+trainability: 0.5
+prerequisites: []
+root_causes: [conditioning_gap, pacing]
+cause_discriminators:
+  conditioning_gap: output also drops in final third
+  pacing: output constant, form alone degrades
+explanation: >
+  Everyone has technique when they're fresh. Fights are decided by who still
+  has it in round three when the lungs are screaming. Fatigue doesn't build
+  character — it reveals which habits are actually trained in.
+fixes_by_cause:
+  conditioning_gap: { drills: [conditioning_output_intervals], cue: "breathe" }
+  pacing: { drills: [broken_rhythm_rounds], cue: "pace the round" }
+tier: T3
+status: seed

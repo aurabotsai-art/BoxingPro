@@ -3,6 +3,7 @@ category: stance
 title: Stance too narrow
 detector: footwork.stance_integrity mean_width < adaptive(user, base=0.9×shoulder_width) sustained
 severity_model: out_of_band_fraction × 0.8   # base faults gate everything above them
+trainability: 0.9
 prerequisites: []
 root_causes: [never_taught, feet_drift_under_combos]
 cause_discriminators:

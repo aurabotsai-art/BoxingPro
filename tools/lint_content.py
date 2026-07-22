@@ -22,7 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FAULT_REQUIRED = [
-    "id", "category", "title", "detector", "severity_model", "root_causes",
+    "id", "category", "title", "detector", "severity_model", "trainability", "root_causes",
     "explanation", "fixes_by_cause", "tier", "status",
 ]
 DRILL_REQUIRED = [

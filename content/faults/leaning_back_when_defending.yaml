@@ -1,0 +1,19 @@
+id: leaning_back_when_defending
+category: defense
+title: Leaning straight back from punches
+detector: defensive head displacement dominated by backward COM shift with head above base polygon rear edge
+severity_model: frequency × 0.8
+trainability: 0.7
+prerequisites: []
+root_causes: [flinch_reflex]
+cause_discriminators:
+  flinch_reflex: occurs on reaction prompts, not planned defense reps
+explanation: >
+  Leaning back trades your balance for six inches the opponent covers with a
+  step. It leaves your chin on the centerline, your weight on your back
+  foot, and no counter available. Slips move the head OFF the line, not
+  away from it.
+fixes_by_cause:
+  flinch_reflex: { drills: [head_movement_u_drill], cue: "off the line, not back" }
+tier: T1
+status: seed

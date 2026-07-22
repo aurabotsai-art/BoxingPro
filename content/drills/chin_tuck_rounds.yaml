@@ -1,0 +1,15 @@
+id: chin_tuck_rounds
+name: Chin-tuck posture rounds
+targets_faults: [chin_up]
+mode: technique
+equipment: none
+space: small
+duration_default: 3x90s
+difficulty: 1
+protocol: >
+  Slow-tempo shadowboxing with the chin-position track graded continuously.
+  App calls "check" at random intervals; user resets posture; drift rate
+  between checks is the score.
+success_criterion: chin-position track within band for >85% of round time
+video_asset: TODO
+status: seed

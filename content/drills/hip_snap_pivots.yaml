@@ -1,0 +1,15 @@
+id: hip_snap_pivots
+name: Hip snap pivot reps
+targets_faults: [no_hip_rotation_rear_hand, arm_punching]
+mode: technique
+equipment: none
+space: small
+duration_default: 4x60s
+difficulty: 2
+protocol: >
+  Isolated rear-hand reps at half speed focusing on heel-turn → hip → shoulder
+  sequencing. Tier-2 analysis grades kinetic-chain timing lags per rep; HFR
+  upload recommended for the deep version.
+success_criterion: hip-before-shoulder sequencing on >80% of reps (Tier-2 kinetic chain)
+video_asset: TODO
+status: seed

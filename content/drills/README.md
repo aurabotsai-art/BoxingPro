@@ -2,7 +2,7 @@
 
 Structured drills the coach engine prescribes (docs/06 §7). The LLM selects and sequences from this library; it can never invent a drill. Every drill declares a **measurable success criterion** over Metrics Core outputs so the coaching loop closes (prescribe → measure → adapt).
 
-**Status: v0 seed (8 drills, all referenced by seed faults).** Target ~60 for MVP with coach-panel authorship. Video demos are production assets, tracked by ID here. Cross-references enforced by `tools/lint_content.py` in CI.
+**Status: v0 seed (14 drills, all cross-referenced by faults).** Target ~60 for MVP with coach-panel authorship. Video demos are production assets, tracked by ID here. Cross-references enforced by `tools/lint_content.py` in CI.
 
 Schema:
 
@@ -10,7 +10,7 @@ Schema:
 id: stable key (referenced by faults' fixes_by_cause and plan items)
 name: user-facing
 targets_faults: [fault ids]
-mode: shadowboxing | reaction | technique | bag | footwork | conditioning
+mode: shadowboxing | reaction | technique | bag | footwork | defense | conditioning
 equipment: none | bag | ...
 space: small | medium
 duration_default: e.g. 3x2min

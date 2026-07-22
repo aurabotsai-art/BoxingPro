@@ -1,0 +1,15 @@
+id: guard_discipline_rounds
+name: Guard discipline rounds
+targets_faults: [guard_low_at_rest]
+mode: shadowboxing
+equipment: none
+space: small
+duration_default: 3x2min
+difficulty: 1
+protocol: >
+  Normal shadowboxing but the ONLY graded quantity is guard_up_fraction from
+  the continuous guard sampler. Live cue fires after 3 consecutive seconds
+  below guard; end-of-round readout is the fraction plus the longest lapse.
+success_criterion: guard_up_fraction > 0.80 across 3 consecutive sessions
+video_asset: TODO
+status: seed

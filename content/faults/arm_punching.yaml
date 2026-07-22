@@ -1,0 +1,20 @@
+id: arm_punching
+category: offense_mechanics
+title: Arm punching (no weight transfer)
+detector: COM displacement toward target during strike < adaptive threshold across straight punches
+severity_model: frequency × 0.6
+trainability: 0.6
+prerequisites: [stance_too_narrow]
+root_causes: [no_hip_rotation, overcaution]
+cause_discriminators:
+  no_hip_rotation: co-occurs with no_hip_rotation_rear_hand instances
+  overcaution: mechanics fine on slow reps, vanish at speed
+explanation: >
+  Punches thrown from the elbow score on a video game, not on a body. Weight
+  moving through the target is what buzzes an opponent — arms alone just
+  tell them you're there.
+fixes_by_cause:
+  no_hip_rotation: { drills: [hip_snap_pivots], cue: "sit on it" }
+  overcaution: { drills: [range_marker_jabs], cue: "commit" }
+tier: T1
+status: seed

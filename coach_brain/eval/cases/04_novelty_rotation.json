@@ -1,0 +1,37 @@
+{
+  "desc": "Yesterday's primary decays; second fault takes focus",
+  "coached_log": {
+    "hands_drop_after_punch": 0
+  },
+  "analysis": {
+    "version": 1,
+    "session_id": "c0ffee00-0000-0000-0000-000000000004",
+    "tier": "deep_lite",
+    "counts": {
+      "strikes": 100,
+      "frames": 18000,
+      "duration_ms": 540000
+    },
+    "faults": [
+      {
+        "fault_id": "hands_drop_after_punch",
+        "frequency": 0.5,
+        "evidence_t_ms": [
+          1000
+        ],
+        "cause_estimate": "habit"
+      },
+      {
+        "fault_id": "overextension",
+        "frequency": 0.45,
+        "evidence_t_ms": [
+          3000
+        ],
+        "cause_estimate": "range_misjudgment"
+      }
+    ]
+  },
+  "expect": {
+    "primary_fault": "overextension"
+  }
+}

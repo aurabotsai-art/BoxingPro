@@ -1,0 +1,19 @@
+id: chin_up
+category: defense
+title: Chin carried high
+detector: ear-to-shoulder vertical gap > adaptive baseline while in stance (proxy for chin tuck; face landmarks when visible)
+severity_model: frequency × 0.9
+trainability: 0.7
+prerequisites: []
+root_causes: [habit, watching_high]
+cause_discriminators:
+  habit: uniform across contexts
+  watching_high: correlates with defensive sequences (head rises when reacting)
+explanation: >
+  A raised chin is the light switch. Tucked behind the lead shoulder it takes
+  a perfect shot to find it; up in the air, an average one ends the night.
+fixes_by_cause:
+  habit: { drills: [chin_tuck_rounds], cue: "chin down" }
+  watching_high: { drills: [head_movement_u_drill], cue: "look through the brow" }
+tier: T1
+status: seed

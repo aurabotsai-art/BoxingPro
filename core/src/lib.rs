@@ -25,6 +25,7 @@ pub mod footwork;
 pub mod geometry;
 pub mod guard;
 pub mod metrics;
+pub mod prioritize;
 pub mod rhythm;
 pub mod synthetic;
 pub mod telegraph;

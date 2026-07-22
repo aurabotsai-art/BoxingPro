@@ -1,0 +1,19 @@
+id: guard_low_at_rest
+category: defense
+title: Guard carried low between actions
+detector: guard.guard_up_fraction < adaptive(user, base=0.70) over session (sampler in core/src/guard.rs)
+severity_model: (0.70 - guard_up_fraction) × 1.2, clamped 0..1
+trainability: 0.8
+prerequisites: []
+root_causes: [fatigue, habit]
+cause_discriminators:
+  fatigue: fraction degrades round-over-round
+  habit: uniformly low from round 1
+explanation: >
+  Hands live at home. A guard that rests at your chest turns every incoming
+  shot into a math problem you have to solve from a foot behind schedule.
+fixes_by_cause:
+  habit: { drills: [guard_discipline_rounds], cue: "hands home" }
+  fatigue: { drills: [conditioning_output_intervals], cue: "posture check" }
+tier: T0
+status: seed

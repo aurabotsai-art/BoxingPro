@@ -3,6 +3,7 @@ category: offense_mechanics
 title: Overreaching on straight punches
 detector: strike.extension_frac > 1.02 on classes [jab, cross]
 severity_model: frequency × 0.7 × mean(extension_frac - 1.0) × 10
+trainability: 0.8
 prerequisites: [stance_too_narrow]   # fix the base before the reach
 root_causes: [range_misjudgment, lunging]
 cause_discriminators:

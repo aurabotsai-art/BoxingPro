@@ -1,0 +1,18 @@
+id: crossing_feet
+category: footwork
+title: Crossing the feet while moving
+detector: ankle x-order inversion during lateral step sequences (step events + stance-width track)
+severity_model: occurrences per lateral-movement opportunity × 1.0
+trainability: 0.9
+prerequisites: []
+root_causes: [never_taught]
+cause_discriminators:
+  never_taught: uniform occurrence during lateral movement
+explanation: >
+  Crossed feet mean one touch puts you on the canvas — it is the single
+  fastest way to fall over in boxing without being hit clean. Step-drag,
+  never cross: the base stays under you.
+fixes_by_cause:
+  never_taught: { drills: [lateral_step_drills], cue: "step, drag" }
+tier: T0
+status: seed

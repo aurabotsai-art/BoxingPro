@@ -1,0 +1,39 @@
+{
+  "desc": "Typical session, one dominant fault -> full block sequence (rhythm frequency = threshold exceedance, not raw index)",
+  "analysis": {
+    "version": 1,
+    "session_id": "c0ffee00-0000-0000-0000-000000000001",
+    "tier": "deep_lite",
+    "counts": {
+      "strikes": 142,
+      "frames": 21600,
+      "duration_ms": 720000
+    },
+    "faults": [
+      {
+        "fault_id": "hands_drop_after_punch",
+        "frequency": 0.34,
+        "evidence_t_ms": [
+          10500,
+          44200,
+          90100
+        ],
+        "cause_estimate": "habit"
+      },
+      {
+        "fault_id": "predictable_rhythm",
+        "frequency": 0.3,
+        "evidence_t_ms": [],
+        "cause_estimate": "metronome_bounce"
+      }
+    ]
+  },
+  "expect": {
+    "block_types_include": [
+      "praise",
+      "primary_focus",
+      "prescription"
+    ],
+    "primary_fault": "hands_drop_after_punch"
+  }
+}

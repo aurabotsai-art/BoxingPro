@@ -65,8 +65,8 @@ _Walked at every phase gate. Scores: Likelihood × Impact (1–5 each). Mitigati
 ### Open items (must close before Phase-1 build start)
 - O1: Coach panel recruitment (2–3 credentialed coaches) — blocks taxonomy v1 sign-off.
 - O2: Counsel selection for biometric/consent review — blocks public beta.
-- O3: Phase-0 device matrix purchase list + HFR ground-truth rig spec (240fps reference camera).
-- O4: Decision memo template (ADR-lite) for in-flight architecture changes, appended to affected doc.
+- ~~O3~~ Rescoped by ADR-003 (2026-07): browser matrix needs only borrowed phones (docs/13 M12); HFR ground truth = any recent phone's native slow-mo (docs/14 block S1). Closed as owner-checklist items M12/M13.
+- ~~O4~~ Done 2026-07: `docs/ADR-TEMPLATE.md`; ADR-001..004 already follow it.
 
 ## 4. Standing red-team protocol
 

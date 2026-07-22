@@ -1,0 +1,15 @@
+id: head_movement_u_drill
+name: U-shape head movement drill
+targets_faults: [leaning_back_when_defending, chin_up]
+mode: defense
+equipment: none
+space: small
+duration_default: 3x90s
+difficulty: 2
+protocol: >
+  App calls slip-left / slip-right / roll; head trajectory is graded for the
+  U-shape (lateral + drop) versus straight-back retreat; COM must stay over
+  the base polygon throughout.
+success_criterion: >70% of defensive responses lateral-dominant with COM in base
+video_asset: TODO
+status: seed

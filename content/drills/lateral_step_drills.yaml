@@ -1,0 +1,15 @@
+id: lateral_step_drills
+name: Lateral step-drag drills
+targets_faults: [crossing_feet]
+mode: footwork
+equipment: none
+space: medium
+duration_default: 3x90s
+difficulty: 1
+protocol: >
+  App calls left/right movement bursts; step events are graded for step-drag
+  order (lead foot first in direction of travel, trail foot drags) and any
+  ankle-crossing inversion fails the rep with an immediate cue.
+success_criterion: zero crossing events across 2 consecutive sessions
+video_asset: TODO
+status: seed

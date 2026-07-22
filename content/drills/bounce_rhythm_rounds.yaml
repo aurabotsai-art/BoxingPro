@@ -1,0 +1,15 @@
+id: bounce_rhythm_rounds
+name: Bounce rhythm rounds
+targets_faults: [flat_feet_under_fire]
+mode: footwork
+equipment: none
+space: small
+duration_default: 3x2min
+difficulty: 2
+protocol: >
+  Metronome-guided light bounce with punch calls layered on top — the graded
+  quantity is bounce cadence PERSISTING through the punching, not the punches.
+  Cadence presence measured by the rhythm module per 10s window.
+success_criterion: cadence detected in >75% of windows including punch-active ones
+video_asset: TODO
+status: seed
