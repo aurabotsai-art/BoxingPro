@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BoxingPro Labeler v0</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font: 14px/1.4 system-ui, sans-serif; background: #111; color: #eee; display: flex; flex-direction: column; height: 100vh; }
+  header { padding: 8px 12px; background: #1a1a1a; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  header input[type=file] { font-size: 12px; }
+  #stage { flex: 1; display: flex; min-height: 0; }
+  #viewport { flex: 1; position: relative; background: #000; }
+  video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  #side { width: 300px; background: #161616; overflow-y: auto; padding: 8px; font-size: 12px; }
+  footer { padding: 8px 12px; background: #1a1a1a; display: flex; gap: 10px; align-items: center; }
+  #timeline { flex: 1; height: 26px; background: #222; position: relative; cursor: pointer; border-radius: 4px; }
+  #playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #f44; }
+  .evt { position: absolute; top: 4px; bottom: 4px; background: #3a6ea577; border: 1px solid #6af; border-radius: 2px; }
+  .lbl { position: absolute; top: 4px; bottom: 4px; background: #3aa55e77; border: 1px solid #6fa; border-radius: 2px; }
+  .row { padding: 4px 6px; border-bottom: 1px solid #262626; cursor: pointer; display: flex; justify-content: space-between; }
+  .row:hover { background: #222; } .row.active { background: #2a3a2a; }
+  .row .del { color: #f66; padding: 0 4px; }
+  kbd { background: #2a2a2a; border-radius: 3px; padding: 0 5px; border: 1px solid #444; }
+  #help { color: #999; font-size: 11px; padding: 6px 12px; background: #141414; }
+  button { background: #2a2a2a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <b>BoxingPro Labeler v0</b>
+  <label>archive <input type="file" id="fArchive" accept=".json"></label>
+  <label>analysis (optional) <input type="file" id="fAnalysis" accept=".json"></label>
+  <label>video (optional) <input type="file" id="fVideo" accept="video/*"></label>
+  <button id="bExport">Export labels</button>
+  <span id="status">load a .skeleton.json to begin</span>
+</header>
+<div id="stage">
+  <div id="viewport"><video id="vid" muted playsinline></video><canvas id="cv"></canvas></div>
+  <div id="side"><b>Labels</b><div id="labelList"></div><b style="display:block;margin-top:8px">Detected events</b><div id="evtList"></div></div>
+</div>
+<footer>
+  <button id="bPlay">▶︎/⏸ <kbd>space</kbd></button>
+  <span><kbd>←</kbd>/<kbd>→</kbd> frame · <kbd>[</kbd>/<kbd>]</kbd> speed</span>
+  <div id="timeline"><div id="playhead"></div></div>
+  <span id="clock">0.00s</span>
+</footer>
+<div id="help">
+  Label at playhead: <kbd>1</kbd> jab <kbd>2</kbd> cross <kbd>3</kbd> lead hook <kbd>4</kbd> rear hook
+  <kbd>5</kbd> lead uppercut <kbd>6</kbd> rear uppercut <kbd>f</kbd> feint <kbd>s</kbd> slip <kbd>r</kbd> roll
+  <kbd>d</kbd> duck <kbd>p</kbd> step <kbd>v</kbd> pivot <kbd>0</kbd> null/none · <kbd>x</kbd> delete nearest ·
+  <kbd>e</kbd> jump next detected event · labels are ±350&nbsp;ms windows centered on the playhead (adjust in export if needed)
+</div>
+<script>
+"use strict";
+const CLASSES = { "1":"jab","2":"cross","3":"lead_hook","4":"rear_hook","5":"lead_uppercut","6":"rear_uppercut",
+                  "f":"feint","s":"defensive_slip","r":"defensive_roll","d":"defensive_duck","p":"step","v":"pivot","0":"null" };
+// Canonical joint order — must match core/src/types.rs.
+const BONES = [[3,4],[3,5],[5,7],[4,6],[6,8],[3,9],[4,10],[9,10],[9,11],[11,13],[10,12],[12,14],
+               [13,15],[15,17],[14,16],[16,18],[0,1],[0,2]];
+let archive = null, analysis = null, labels = [], t = 0, playing = false, speed = 1.0, lastTick = 0;
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d"), vid = $("vid");
+
+function duration() { return archive ? archive.frames[archive.frames.length-1].t_ms : 0; }
+function frameAt(ms) {
+  if (!archive) return null;
+  const fs = archive.frames;
+  let lo = 0, hi = fs.length - 1;                       // binary search nearest
+  while (hi - lo > 1) { const m = (lo+hi)>>1; (fs[m].t_ms <= ms) ? lo = m : hi = m; }
+  return (Math.abs(fs[lo].t_ms-ms) < Math.abs(fs[hi].t_ms-ms)) ? fs[lo] : fs[hi];
+}
+function bounds() {                                     // world-space bbox over sampled frames
+  let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+  for (let i = 0; i < archive.frames.length; i += Math.max(1, archive.frames.length>>8)) {
+    for (const j of archive.frames[i].joints) if (j) {
+      minx=Math.min(minx,j.x); maxx=Math.max(maxx,j.x); miny=Math.min(miny,j.y); maxy=Math.max(maxy,j.y);
+    }
+  }
+  return {minx,maxx,miny,maxy};
+}
+let bb = null;
+function draw() {
+  const w = cv.width = cv.clientWidth * devicePixelRatio, h = cv.height = cv.clientHeight * devicePixelRatio;
+  ctx.clearRect(0,0,w,h);
+  const f = frameAt(t); if (!f || !bb) return;
+  const pad = 40*devicePixelRatio;
+  const sx = (w-2*pad)/(bb.maxx-bb.minx || 1), sy = (h-2*pad)/(bb.maxy-bb.miny || 1), s = Math.min(sx,sy);
+  const X = x => pad + (x-bb.minx)*s, Y = y => h - pad - (y-bb.miny)*s;   // y-up world → y-down canvas
+  ctx.lineWidth = 3*devicePixelRatio; ctx.strokeStyle = "#4da3ff"; ctx.fillStyle = "#fff";
+  for (const [a,b] of BONES) {
+    const ja=f.joints[a], jb=f.joints[b]; if (!ja||!jb) continue;
+    ctx.beginPath(); ctx.moveTo(X(ja.x),Y(ja.y)); ctx.lineTo(X(jb.x),Y(jb.y)); ctx.stroke();
+  }
+  for (const j of f.joints) if (j) { ctx.beginPath(); ctx.arc(X(j.x),Y(j.y),4*devicePixelRatio,0,7); ctx.fill(); }
+  // wrists highlighted — the money joints
+  for (const wi of [7,8]) { const j=f.joints[wi]; if (j) { ctx.fillStyle="#ff5555";
+    ctx.beginPath(); ctx.arc(X(j.x),Y(j.y),6*devicePixelRatio,0,7); ctx.fill(); ctx.fillStyle="#fff"; } }
+}
+function renderTimeline() {
+  const tl = $("timeline");
+  tl.querySelectorAll(".evt,.lbl").forEach(e=>e.remove());
+  const D = duration(); if (!D) return;
+  for (const e of (analysis?.events||[])) {
+    const d = document.createElement("div"); d.className = "evt";
+    d.style.left = (100*e.t_start_ms/D)+"%"; d.style.width = Math.max(0.3,100*(e.t_end_ms-e.t_start_ms)/D)+"%";
+    tl.appendChild(d);
+  }
+  for (const l of labels) {
+    const d = document.createElement("div"); d.className = "lbl";
+    d.style.left = (100*l.t_start_ms/D)+"%"; d.style.width = Math.max(0.3,100*(l.t_end_ms-l.t_start_ms)/D)+"%";
+    tl.appendChild(d);
+  }
+  $("playhead").style.left = (100*t/D)+"%";
+  $("clock").textContent = (t/1000).toFixed(2)+"s ×"+speed.toFixed(2);
+}
+function renderLists() {
+  $("labelList").innerHTML = labels.map((l,i) =>
+    `<div class="row" data-i="${i}"><span>${(l.t_start_ms/1000).toFixed(2)}s ${l.class}</span><span class="del" data-del="${i}">✕</span></div>`).join("");
+  $("evtList").innerHTML = (analysis?.events||[]).map((e,i) =>
+    `<div class="row" data-t="${e.t_apex_ms??e.t_start_ms}"><span>${((e.t_apex_ms??e.t_start_ms)/1000).toFixed(2)}s ${e.class||e.kind}</span><span>${e.hand||""}</span></div>`).join("");
+}
+function seek(ms) { t = Math.max(0, Math.min(duration(), ms)); if (vid.src) vid.currentTime = t/1000; draw(); renderTimeline(); }
+function tick(now) {
+  if (playing && archive) { t += (now-lastTick)*speed; if (t >= duration()) { t = duration(); playing = false; }
+    if (vid.src && Math.abs(vid.currentTime*1000-t) > 80) vid.currentTime = t/1000;
+    draw(); renderTimeline(); }
+  lastTick = now; requestAnimationFrame(tick);
+}
+requestAnimationFrame(ts => { lastTick = ts; requestAnimationFrame(tick); });
+
+$("fArchive").onchange = async e => {
+  archive = JSON.parse(await e.target.files[0].text()); bb = bounds(); t = 0;
+  $("status").textContent = `${archive.frames.length} frames @ ${archive.capture?.fps_nominal||"?"}fps — ${e.target.files[0].name}`;
+  draw(); renderTimeline(); renderLists();
+};
+$("fAnalysis").onchange = async e => { analysis = JSON.parse(await e.target.files[0].text()); renderTimeline(); renderLists(); };
+$("fVideo").onchange = e => { vid.src = URL.createObjectURL(e.target.files[0]); };
+$("bPlay").onclick = () => { playing = !playing; playing && vid.src ? vid.play() : vid.pause(); };
+$("timeline").onclick = e => { const r = e.currentTarget.getBoundingClientRect(); seek(duration()*(e.clientX-r.left)/r.width); };
+$("side").onclick = e => {
+  const del = e.target.dataset.del; if (del !== undefined) { labels.splice(+del,1); renderLists(); renderTimeline(); return; }
+  const row = e.target.closest(".row"); if (!row) return;
+  if (row.dataset.t !== undefined) seek(+row.dataset.t);
+  if (row.dataset.i !== undefined) seek(labels[+row.dataset.i].t_start_ms + 350);
+};
+$("bExport").onclick = () => {
+  const blob = new Blob([JSON.stringify({
+    version: 1, source: archive?.ingest_meta?.source || archive?.session_id || "unknown",
+    labeled_at: new Date().toISOString(), labels
+  }, null, 2)], {type: "application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = (archive?.ingest_meta?.source||"labels")+".labels.json"; a.click();
+};
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  const frameMs = archive?.capture?.fps_nominal ? 1000/archive.capture.fps_nominal : 33;
+  if (e.key === " ") { e.preventDefault(); $("bPlay").click(); }
+  else if (e.key === "ArrowLeft") seek(t - frameMs);
+  else if (e.key === "ArrowRight") seek(t + frameMs);
+  else if (e.key === "[") speed = Math.max(0.1, speed/1.5);
+  else if (e.key === "]") speed = Math.min(4, speed*1.5);
+  else if (e.key === "e") { const es=(analysis?.events||[]).map(x=>x.t_apex_ms??x.t_start_ms).sort((a,b)=>a-b);
+    const nxt = es.find(x => x > t+1); if (nxt !== undefined) seek(nxt); }
+  else if (e.key === "x") { let best=-1,bd=1e18; labels.forEach((l,i)=>{const d=Math.abs((l.t_start_ms+350)-t); if(d<bd){bd=d;best=i;}});
+    if (best>=0 && bd<1000) { labels.splice(best,1); renderLists(); renderTimeline(); } }
+  else if (CLASSES[e.key]) {
+    labels.push({ t_start_ms: Math.max(0, Math.round(t-350)), t_end_ms: Math.round(t+350), class: CLASSES[e.key] });
+    labels.sort((a,b)=>a.t_start_ms-b.t_start_ms); renderLists(); renderTimeline();
+  }
+  renderTimeline();
+});
+window.addEventListener("resize", draw);
+</script>
+</body>
+</html>

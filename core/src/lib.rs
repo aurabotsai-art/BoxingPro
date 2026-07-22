@@ -17,12 +17,15 @@
 //! - All positions are meters in body- or camera-space as documented per
 //!   function; all times are milliseconds; all speeds m/s.
 
+pub mod combos;
 pub mod events;
 pub mod faults;
 pub mod filters;
 pub mod footwork;
 pub mod geometry;
+pub mod guard;
 pub mod metrics;
 pub mod rhythm;
 pub mod synthetic;
+pub mod telegraph;
 pub mod types;
