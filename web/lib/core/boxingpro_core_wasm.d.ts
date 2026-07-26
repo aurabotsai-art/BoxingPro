@@ -37,6 +37,13 @@ export class SessionAnalyzer {
    */
   summary_json(): string;
   /**
+   * Current guard state from the newest frame: `"both_high"`,
+   * `"lead_down"`, `"rear_down"`, `"both_down"`, or `""` when unprofiled
+   * or a wrist is unobserved. Flicker handling (punches drop the guard by
+   * definition for ~200ms) belongs to the caller.
+   */
+  guard_state_now(): string;
+  /**
    * Live cue id for the most recent completed strike:
    * `"hands_drop_after_punch"`, or `""` when clean or unmeasurable. Same
    * thresholds as the session fault layer (`FaultThresholds` novice
@@ -65,6 +72,7 @@ export interface InitOutput {
   readonly __wbg_sessionanalyzer_free: (a: number, b: number) => void;
   readonly sessionanalyzer_archive_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
   readonly sessionanalyzer_frame_count: (a: number) => number;
+  readonly sessionanalyzer_guard_state_now: (a: number, b: number) => void;
   readonly sessionanalyzer_has_profile: (a: number) => number;
   readonly sessionanalyzer_last_strike_cue: (a: number, b: number) => void;
   readonly sessionanalyzer_last_strike_json: (a: number, b: number) => void;

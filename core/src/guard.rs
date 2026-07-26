@@ -32,12 +32,12 @@ fn wrist_home(frame: &PoseFrame, wrist: Joint, guard: [f64; 2], radius: f64) -> 
     Some(((w.x - guard[0]).powi(2) + (w.y - guard[1]).powi(2)).sqrt() <= radius)
 }
 
-/// Per-frame guard state. None where either wrist is unobserved.
-pub fn guard_state_series(
-    seq: &Sequence,
+/// Guard state of a single frame. None where either wrist is unobserved.
+pub fn guard_state_frame(
+    frame: &PoseFrame,
     profile: &BodyProfile,
     cfg: &GuardConfig,
-) -> Vec<Option<GuardState>> {
+) -> Option<GuardState> {
     let (lead_wrist, lead_guard, rear_wrist, rear_guard) = match profile.stance {
         Stance::Orthodox => (
             Hand::Left.wrist(),
@@ -52,18 +52,25 @@ pub fn guard_state_series(
             profile.guard_left,
         ),
     };
+    let lead = wrist_home(frame, lead_wrist, lead_guard, cfg.radius_m)?;
+    let rear = wrist_home(frame, rear_wrist, rear_guard, cfg.radius_m)?;
+    Some(match (lead, rear) {
+        (true, true) => GuardState::BothHigh,
+        (false, true) => GuardState::LeadDown,
+        (true, false) => GuardState::RearDown,
+        (false, false) => GuardState::BothDown,
+    })
+}
+
+/// Per-frame guard state. None where either wrist is unobserved.
+pub fn guard_state_series(
+    seq: &Sequence,
+    profile: &BodyProfile,
+    cfg: &GuardConfig,
+) -> Vec<Option<GuardState>> {
     seq.frames
         .iter()
-        .map(|f| {
-            let lead = wrist_home(f, lead_wrist, lead_guard, cfg.radius_m)?;
-            let rear = wrist_home(f, rear_wrist, rear_guard, cfg.radius_m)?;
-            Some(match (lead, rear) {
-                (true, true) => GuardState::BothHigh,
-                (false, true) => GuardState::LeadDown,
-                (true, false) => GuardState::RearDown,
-                (false, false) => GuardState::BothDown,
-            })
-        })
+        .map(|f| guard_state_frame(f, profile, cfg))
         .collect()
 }
 

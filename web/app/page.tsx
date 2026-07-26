@@ -41,6 +41,8 @@ type Hud = {
   elapsed: number;
   /// Round-timer state, or null in freestyle mode.
   round: { n: number; phase: "work" | "rest"; remaining: number } | null;
+  /// Debounced guard state id ("" = unknown/unprofiled).
+  guard: string;
 };
 
 const ROUND_WORK_S = 180;
@@ -55,9 +57,19 @@ type Summary = {
   max_peak_speed: number | null;
   avg_guard_recovery_ms: number | null;
   strikes_per_min: number | null;
+  guard_up_frac: number | null;
   /** Epoch ms; stamped when saved to history. */
   at: number;
 };
+
+/** Guard pill: id → [label, background]. Warnings only after sustained drop. */
+const GUARD_VIEW: Record<string, [string, string]> = {
+  both_high: ["guard up", "#16341fdd"],
+  lead_down: ["lead hand low", "#4a2410dd"],
+  rear_down: ["rear hand low", "#4a2410dd"],
+  both_down: ["hands low!", "#4a1010dd"],
+};
+const GUARD_WARN_SUSTAIN_MS = 800;
 
 type StrikeLogItem = {
   t_ms: number;
@@ -144,6 +156,7 @@ export default function SessionPage() {
     profileReady: false,
     elapsed: 0,
     round: null,
+    guard: "",
   });
 
   const endRef = useRef<(() => void) | null>(null);
@@ -199,6 +212,8 @@ export default function SessionPage() {
         let lastStrikes = 0;
         let lastCueAt = -Infinity;
         let lastRoundPhase: "work" | "rest" | null = null;
+        let guardRaw = "";
+        let guardSince = 0;
         resetRef.current = () => {
           analyzer = new core.SessionAnalyzer();
           sessionStart = performance.now();
@@ -348,6 +363,18 @@ export default function SessionPage() {
               lastRoundPhase = null;
             }
 
+            // Guard: warnings must survive the debounce window; "guard up"
+            // shows immediately (a punch drops guard by definition, briefly).
+            const g = analyzer.guard_state_now();
+            if (g !== guardRaw) {
+              guardRaw = g;
+              guardSince = now;
+            }
+            const guardShown =
+              g === "both_high" || (g !== "" && now - guardSince > GUARD_WARN_SUSTAIN_MS)
+                ? g
+                : "";
+
             if (frames % 15 === 0) {
               const raw = analyzer.last_strike_json();
               setHud({
@@ -359,6 +386,7 @@ export default function SessionPage() {
                 profileReady: analyzer.has_profile(),
                 elapsed: (now - sessionStart) / 1000,
                 round,
+                guard: guardShown,
               });
             }
           }
@@ -409,6 +437,11 @@ export default function SessionPage() {
           <span data-testid="status" style={pill(hud.status === "live" ? "#16341fdd" : "#33241add")}>
             {hud.status === "live" ? "● LIVE" : hud.status}
           </span>
+          {hud.guard && GUARD_VIEW[hud.guard] && (
+            <span data-testid="guard" style={pill(GUARD_VIEW[hud.guard][1])}>
+              {GUARD_VIEW[hud.guard][0]}
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <span data-testid="pose" style={pill(hud.poseDetected ? "#16341fdd" : "#3a1a1add")}>
@@ -536,6 +569,7 @@ export default function SessionPage() {
                   {row("Avg hand speed", s.avg_peak_speed != null ? `${s.avg_peak_speed.toFixed(1)} m/s` : "—")}
                   {row("Fastest", s.max_peak_speed != null ? `${s.max_peak_speed.toFixed(1)} m/s` : "—")}
                   {row("Avg guard return", s.avg_guard_recovery_ms != null ? `${Math.round(s.avg_guard_recovery_ms)} ms` : "—")}
+                  {row("Guard up", s.guard_up_frac != null ? `${Math.round(s.guard_up_frac * 100)}% of the time` : "—")}
                 </>
               );
             })()}

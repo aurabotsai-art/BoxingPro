@@ -245,6 +245,29 @@ export class SessionAnalyzer {
         }
     }
     /**
+     * Current guard state from the newest frame: `"both_high"`,
+     * `"lead_down"`, `"rear_down"`, `"both_down"`, or `""` when unprofiled
+     * or a wrist is unobserved. Flicker handling (punches drop the guard by
+     * definition for ~200ms) belongs to the caller.
+     * @returns {string}
+     */
+    guard_state_now() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.sessionanalyzer_guard_state_now(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * Live cue id for the most recent completed strike:
      * `"hands_drop_after_punch"`, or `""` when clean or unmeasurable. Same
      * thresholds as the session fault layer (`FaultThresholds` novice

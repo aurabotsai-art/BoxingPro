@@ -217,6 +217,27 @@ impl SessionAnalyzer {
         format!("[{}]", items.join(","))
     }
 
+    /// Current guard state from the newest frame: `"both_high"`,
+    /// `"lead_down"`, `"rear_down"`, `"both_down"`, or `""` when unprofiled
+    /// or a wrist is unobserved. Flicker handling (punches drop the guard by
+    /// definition for ~200ms) belongs to the caller.
+    pub fn guard_state_now(&self) -> String {
+        use boxingpro_core::guard::{guard_state_frame, GuardConfig, GuardState};
+        let Some(p) = &self.profile else {
+            return String::new();
+        };
+        let Some(f) = self.seq.frames.last() else {
+            return String::new();
+        };
+        match guard_state_frame(f, p, &GuardConfig::default()) {
+            Some(GuardState::BothHigh) => "both_high".into(),
+            Some(GuardState::LeadDown) => "lead_down".into(),
+            Some(GuardState::RearDown) => "rear_down".into(),
+            Some(GuardState::BothDown) => "both_down".into(),
+            None => String::new(),
+        }
+    }
+
     /// Serialize the session as a schema-valid SkeletonArchive v1 document
     /// (contracts/skeleton_archive.v1.schema.json), `t_ms` rebased to the
     /// first frame. Coordinate space is camera_metric (MediaPipe world
@@ -306,8 +327,15 @@ impl SessionAnalyzer {
             .fold(None::<f64>, |m, s| Some(m.map_or(s, |m| m.max(s))));
         let avg_recovery = (!recoveries.is_empty()).then(|| mean(&recoveries));
         let per_min = (dur_ms > 1000.0).then(|| (speeds.len() as f64) / (dur_ms / 60_000.0));
+        // Guard discipline: fraction of observed frames with both hands home.
+        // Honesty gate: needs ≥300 observed frames (~5-10s) to be a claim.
+        let guard_up = self.profile.as_ref().and_then(|p| {
+            use boxingpro_core::guard::{guard_state_series, guard_up_fraction, GuardConfig};
+            let series = guard_state_series(&self.seq, p, &GuardConfig::default());
+            guard_up_fraction(&series, 300)
+        });
         format!(
-            "{{\"duration_ms\":{:.0},\"strikes_left\":{},\"strikes_right\":{},\"avg_peak_speed\":{},\"max_peak_speed\":{},\"avg_guard_recovery_ms\":{},\"strikes_per_min\":{}}}",
+            "{{\"duration_ms\":{:.0},\"strikes_left\":{},\"strikes_right\":{},\"avg_peak_speed\":{},\"max_peak_speed\":{},\"avg_guard_recovery_ms\":{},\"strikes_per_min\":{},\"guard_up_frac\":{}}}",
             dur_ms,
             self.left.candidates().len(),
             self.right.candidates().len(),
@@ -315,6 +343,7 @@ impl SessionAnalyzer {
             fmt_opt(max_speed, 2),
             fmt_opt(avg_recovery, 0),
             fmt_opt(per_min, 1),
+            fmt_opt(guard_up, 3),
         )
     }
 }
@@ -386,6 +415,21 @@ mod tests {
         let s = a.summary_json();
         assert!(s.contains("\"strikes_left\":1"), "{s}");
         assert!(s.contains("\"strikes_right\":0"), "{s}");
+    }
+
+    #[test]
+    fn guard_state_and_summary_fraction_report_hands_home() {
+        // Long idle bookends: >300 observed frames so the honesty gate opens.
+        let jab = SyntheticJab {
+            idle_ms: 3000.0,
+            ..SyntheticJab::default()
+        };
+        let a = analyzer_from(&jab_sequence(1.8, &jab));
+        assert_eq!(a.guard_state_now(), "both_high");
+        let s = a.summary_json();
+        let v: serde_json::Value = serde_json::from_str(&s).unwrap();
+        let frac = v["guard_up_frac"].as_f64().expect("gate open");
+        assert!(frac > 0.8, "mostly at guard, got {frac}");
     }
 
     #[test]
