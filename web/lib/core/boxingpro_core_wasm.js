@@ -131,6 +131,35 @@ export class SessionAnalyzer {
         }
     }
     /**
+     * Live cue id for the most recent completed strike:
+     * `"hands_drop_after_punch"`, or `""` when clean or unmeasurable. Same
+     * thresholds as the session fault layer (`FaultThresholds` novice
+     * defaults, docs/05 stage 8); cue pacing and wording belong to the UI.
+     *
+     * Overextension is deliberately NOT cued here: the auto-profile derives
+     * arm length from the p95 of this session's own reach, so a full honest
+     * extension measures slightly over 1.0 by construction — cueing on it
+     * would be pseudo-precision (docs/03). It returns once profiles come
+     * from real calibration.
+     * @returns {string}
+     */
+    last_strike_cue() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.sessionanalyzer_last_strike_cue(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_1(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * JSON summary of the most recent strike (speed, extension, guard
      * recovery) or `null` if none/unprofiled. Numbers via the same Metrics
      * Core code paths as every other tier.

@@ -102,9 +102,16 @@ impl SessionAnalyzer {
         self.seq.frames.push(pf);
         self.left.advance(&self.seq);
         self.right.advance(&self.seq);
-        // Refresh the auto-profile periodically until it locks in.
-        if self.profile.is_none() && self.seq.frames.len().is_multiple_of(60) {
-            self.profile = auto_profile_from(&self.seq);
+        // Auto-profile: first estimate as soon as possible (every 60 frames
+        // until one sticks), then keep refining every 300 frames — the guard
+        // median converges as guard-position frames dominate the session,
+        // washing out contamination from punches thrown during the first
+        // seconds.
+        let n = self.seq.frames.len();
+        if (self.profile.is_none() && n.is_multiple_of(60)) || n.is_multiple_of(300) {
+            if let Some(p) = auto_profile_from(&self.seq) {
+                self.profile = Some(p);
+            }
         }
     }
 
@@ -118,6 +125,13 @@ impl SessionAnalyzer {
         self.left.candidates().len() + self.right.candidates().len()
     }
 
+    fn last_candidate(&self) -> Option<(Hand, &boxingpro_core::events::StrikeCandidate)> {
+        [&self.left, &self.right]
+            .into_iter()
+            .filter_map(|d| d.candidates().last().map(|c| (d.hand(), c)))
+            .max_by(|a, b| a.1.peak_idx.cmp(&b.1.peak_idx))
+    }
+
     /// JSON summary of the most recent strike (speed, extension, guard
     /// recovery) or `null` if none/unprofiled. Numbers via the same Metrics
     /// Core code paths as every other tier.
@@ -126,11 +140,7 @@ impl SessionAnalyzer {
             Some(p) => p,
             None => return "null".into(),
         };
-        let Some((hand, c)) = [&self.left, &self.right]
-            .into_iter()
-            .filter_map(|d| d.candidates().last().map(|c| (d.hand(), c)))
-            .max_by(|a, b| a.1.peak_idx.cmp(&b.1.peak_idx))
-        else {
+        let Some((hand, c)) = self.last_candidate() else {
             return "null".into();
         };
         let m = strike_metrics(&self.seq, c, profile, &MetricsConfig::default());
@@ -145,6 +155,35 @@ impl SessionAnalyzer {
 
     pub fn has_profile(&self) -> bool {
         self.profile.is_some()
+    }
+
+    /// Live cue id for the most recent completed strike:
+    /// `"hands_drop_after_punch"`, or `""` when clean or unmeasurable. Same
+    /// thresholds as the session fault layer (`FaultThresholds` novice
+    /// defaults, docs/05 stage 8); cue pacing and wording belong to the UI.
+    ///
+    /// Overextension is deliberately NOT cued here: the auto-profile derives
+    /// arm length from the p95 of this session's own reach, so a full honest
+    /// extension measures slightly over 1.0 by construction — cueing on it
+    /// would be pseudo-precision (docs/03). It returns once profiles come
+    /// from real calibration.
+    pub fn last_strike_cue(&self) -> String {
+        use boxingpro_core::faults::{FaultThresholds, HANDS_DROP_AFTER_PUNCH};
+        let Some(profile) = &self.profile else {
+            return String::new();
+        };
+        let Some((_, c)) = self.last_candidate() else {
+            return String::new();
+        };
+        let th = FaultThresholds::default();
+        let m = strike_metrics(&self.seq, c, profile, &MetricsConfig::default());
+        match m.guard_recovery_ms {
+            // None on a completed strike = never returned to guard within the
+            // search window — the worst case, not missing data (faults.rs).
+            Some(ms) if ms > th.guard_recovery_ms => HANDS_DROP_AFTER_PUNCH.into(),
+            None => HANDS_DROP_AFTER_PUNCH.into(),
+            Some(_) => String::new(),
+        }
     }
 
     /// Whole-session summary as JSON: counts per hand, speed stats, average
@@ -194,5 +233,69 @@ impl SessionAnalyzer {
 impl Default for SessionAnalyzer {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use boxingpro_core::synthetic::{jab_sequence, SyntheticJab};
+    use boxingpro_core::types::JOINT_COUNT;
+
+    /// Feed a synthetic sequence through the browser-facing flat-array API.
+    fn analyzer_from(seq: &Sequence) -> SessionAnalyzer {
+        let mut a = SessionAnalyzer::new();
+        let mut buf = vec![0.0; JOINT_COUNT * 4];
+        for f in &seq.frames {
+            for (i, j) in f.joints.iter().enumerate() {
+                let (x, y, z, c) = match j {
+                    Some(k) => (k.x, k.y, k.z.unwrap_or(f64::NAN), k.confidence),
+                    None => (0.0, 0.0, f64::NAN, 0.0),
+                };
+                buf[i * 4] = x;
+                buf[i * 4 + 1] = y;
+                buf[i * 4 + 2] = z;
+                buf[i * 4 + 3] = c;
+            }
+            a.push_frame(f.t_ms, &buf);
+        }
+        a
+    }
+
+    // idle_ms 1200 gives the auto-profile a clean guard-only window (first
+    // estimate lands at frame 60, ~1000ms) before the punch contaminates it —
+    // the same reason the app tells users "calibrating — keep moving".
+    #[test]
+    fn clean_jab_yields_no_cue() {
+        let jab = SyntheticJab {
+            idle_ms: 1200.0,
+            ..SyntheticJab::default()
+        };
+        let a = analyzer_from(&jab_sequence(1.8, &jab));
+        assert_eq!(a.strike_count(), 1);
+        assert!(a.has_profile(), "auto-profile must lock during idle frames");
+        assert_eq!(a.last_strike_cue(), "");
+    }
+
+    #[test]
+    fn slow_guard_return_yields_hands_drop_cue() {
+        // Same punch-out, but the hand saunters back over 900ms: recovery
+        // crosses the 550ms novice threshold.
+        let jab = SyntheticJab {
+            idle_ms: 1200.0,
+            back_ms: 900.0,
+            ..SyntheticJab::default()
+        };
+        let a = analyzer_from(&jab_sequence(1.8, &jab));
+        assert_eq!(a.strike_count(), 1);
+        assert_eq!(a.last_strike_cue(), "hands_drop_after_punch");
+    }
+
+    #[test]
+    fn summary_counts_match_detectors() {
+        let a = analyzer_from(&jab_sequence(1.8, &SyntheticJab::default()));
+        let s = a.summary_json();
+        assert!(s.contains("\"strikes_left\":1"), "{s}");
+        assert!(s.contains("\"strikes_right\":0"), "{s}");
     }
 }

@@ -61,6 +61,14 @@ type Summary = {
 
 const HISTORY_KEY = "boxingpro.sessions.v1";
 
+/** Cue id (from the Metrics Core fault layer) → words. One cue at a time. */
+const CUE_TEXT: Record<string, string> = {
+  hands_drop_after_punch: "Hands back to guard faster",
+  overextension: "Don't overreach — stay inside your range",
+};
+const CUE_SHOW_MS = 2800;
+const CUE_GAP_MS = 6000;
+
 function loadHistory(): Summary[] {
   try {
     return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]") as Summary[];
@@ -133,6 +141,7 @@ export default function SessionPage() {
 
   const endRef = useRef<(() => void) | null>(null);
   const [summary, setSummary] = useState<{ current: Summary; history: Summary[] } | null>(null);
+  const [cue, setCue] = useState<string | null>(null);
 
   const onReset = useCallback(() => resetRef.current?.(), []);
   const onEnd = useCallback(() => endRef.current?.(), []);
@@ -168,6 +177,7 @@ export default function SessionPage() {
         let analyzer = new core.SessionAnalyzer();
         let sessionStart = performance.now();
         let lastStrikes = 0;
+        let lastCueAt = -Infinity;
         let lastRoundPhase: "work" | "rest" | null = null;
         resetRef.current = () => {
           analyzer = new core.SessionAnalyzer();
@@ -271,8 +281,14 @@ export default function SessionPage() {
             analyzer.push_frame(tMs, joints);
 
             const count = analyzer.strike_count();
-            if (count > lastStrikes && soundOnRef.current && audioRef.current) {
-              beep(audioRef.current);
+            if (count > lastStrikes) {
+              if (soundOnRef.current && audioRef.current) beep(audioRef.current);
+              const cueId = analyzer.last_strike_cue();
+              if (cueId && now - lastCueAt > CUE_GAP_MS) {
+                lastCueAt = now;
+                setCue(CUE_TEXT[cueId] ?? null);
+                setTimeout(() => setCue(null), CUE_SHOW_MS);
+              }
             }
             lastStrikes = count;
 
@@ -438,6 +454,17 @@ export default function SessionPage() {
           </button>
         </div>
       </div>
+
+      {cue && (
+        <div
+          data-testid="cue"
+          style={{ position: "absolute", top: "22%", left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}
+        >
+          <span style={{ background: "#7a3a10ee", border: "1px solid #b25a20", color: "#ffe3cf", borderRadius: 14, padding: "12px 22px", fontSize: 20, fontWeight: 800, letterSpacing: 0.3, boxShadow: "0 4px 24px #0008" }}>
+            {cue}
+          </span>
+        </div>
+      )}
 
       {!hud.profileReady && hud.status === "live" && (
         <div data-testid="profile" style={{ position: "absolute", bottom: 110, left: 0, right: 0, textAlign: "center", color: "#9aa0aa", fontSize: 13 }}>
