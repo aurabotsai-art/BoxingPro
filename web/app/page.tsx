@@ -81,6 +81,53 @@ const ONBOARDED_KEY = "boxingpro.onboarded.v1";
 /** Speeds above this are pose glitches (elite hands top out ~13 m/s), not PBs. */
 const PB_SANITY_MPS = 15;
 
+/** On-device archive store: last N session keypoint archives in IndexedDB
+ *  (localStorage is too small — a 30-min archive is ~18MB). Best-effort:
+ *  private mode / quota errors never break the session flow. */
+const IDB_NAME = "boxingpro";
+const IDB_STORE = "archives";
+const IDB_KEEP = 5;
+
+function idbOpen(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(IDB_STORE)) {
+        req.result.createObjectStore(IDB_STORE, { keyPath: "at" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbSaveArchive(at: number, archive: string): Promise<void> {
+  const db = await idbOpen();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    tx.objectStore(IDB_STORE).put({ at, archive });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  // Prune oldest beyond the keep limit.
+  const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readonly");
+    const req = tx.objectStore(IDB_STORE).getAllKeys();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  const excess = (keys as number[]).sort((a, b) => a - b).slice(0, Math.max(0, keys.length - IDB_KEEP));
+  if (excess.length) {
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      for (const k of excess) tx.objectStore(IDB_STORE).delete(k);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  }
+  db.close();
+}
+
 function loadPb(): number | null {
   try {
     const v = Number(localStorage.getItem(PB_KEY));
@@ -347,6 +394,11 @@ export default function SessionPage() {
               ? bucketRounds(log, Math.max(0, roundAnchorRef.current - sessionStart), s.duration_ms)
               : [];
           const history = s.duration_ms > 5000 ? saveToHistory(s) : [s, ...loadHistory()];
+          if (s.duration_ms > 5000) {
+            idbSaveArchive(s.at, archive).catch(() => {
+              /* private mode / quota: download link still works */
+            });
+          }
           setSummary({ current: s, history: history.slice(1, 6), log, rounds, archiveUrl, archiveBytes: archive.length });
           resetRef.current?.();
         };
@@ -894,6 +946,11 @@ export default function SessionPage() {
             >
               ⬇ Download keypoint data ({(summary.archiveBytes / 1048576).toFixed(1)} MB) — no video, ever
             </a>
+            {summary.current.duration_ms > 5000 && (
+              <div style={{ textAlign: "center", fontSize: 11, color: "#9aa0aa", marginTop: 6 }}>
+                also kept on this device (last {IDB_KEEP} sessions)
+              </div>
+            )}
             <button
               onClick={() => {
                 URL.revokeObjectURL(summary.archiveUrl);
