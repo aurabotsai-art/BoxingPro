@@ -36,3 +36,48 @@ jobs:
           node-version: 22
       - run: npm install --no-save ajv-cli@5 ajv-formats@2
       - run: npx ajv compile --spec=draft2020 -c ajv-formats -s "contracts/*.schema.json"
+
+  web:
+    name: Web app (production build, mirrors Vercel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      # Same command Vercel runs (vercel.json buildCommand): stages MediaPipe
+      # wasm + pose model + core wasm into public/, then next build.
+      - run: npm run vercel-build
+        working-directory: web
+
+  wasm-bindings:
+    name: WASM bindings freshness (web/lib/core in sync with core-wasm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build -p boxingpro-core-wasm --target wasm32-unknown-unknown --release
+      - name: Regenerate bindings with the pinned wasm-bindgen
+        run: |
+          curl -sSfL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.104/wasm-bindgen-0.2.104-x86_64-unknown-linux-musl.tar.gz | tar xz
+          ./wasm-bindgen-0.2.104-x86_64-unknown-linux-musl/wasm-bindgen \
+            --target web --out-dir /tmp/bindings \
+            target/wasm32-unknown-unknown/release/boxingpro_core_wasm.wasm
+      # JS/TS interface files are deterministic for a given exported API, so a
+      # diff means someone changed core-wasm without regenerating bindings.
+      # (Wasm bytes are compiler-version-sensitive, so only the repo-internal
+      # copy consistency is checked, not byte equality with the CI build.)
+      - name: Bindings must match the committed interface
+        run: |
+          diff /tmp/bindings/boxingpro_core_wasm.js web/lib/core/boxingpro_core_wasm.js
+          diff /tmp/bindings/boxingpro_core_wasm.d.ts web/lib/core/boxingpro_core_wasm.d.ts
+          diff /tmp/bindings/boxingpro_core_wasm_bg.wasm.d.ts web/lib/core/boxingpro_core_wasm_bg.wasm.d.ts
+      - name: Staged public wasm must match the committed bindings wasm
+        run: cmp web/lib/core/boxingpro_core_wasm_bg.wasm web/public/core/boxingpro_core_wasm_bg.wasm
