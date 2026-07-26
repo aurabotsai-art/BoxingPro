@@ -16,11 +16,37 @@ use boxingpro_core::metrics::{strike_metrics, MetricsConfig};
 use boxingpro_core::types::{BodyProfile, Keypoint, PoseFrame, Sequence, Stance, JOINT_COUNT};
 use wasm_bindgen::prelude::*;
 
+/// Raw frames as pushed, packed as f32 (t_ms stays f64): 344B/frame vs the
+/// 848B PoseFrame layout. Only the archive/export path reads this — the
+/// data flywheel wants sensor truth, not our smoothing choices, and f32
+/// keeps ~7 significant digits, far beyond pose-estimate accuracy.
+#[derive(Default)]
+struct PackedFrames {
+    t_ms: Vec<f64>,
+    /// 84 floats per frame: 21 joints × (x, y, z, c); c == 0 → unobserved,
+    /// NaN z → depth unknown.
+    data: Vec<f32>,
+}
+
+impl PackedFrames {
+    fn push(&mut self, t_ms: f64, joints: &[f64]) {
+        self.t_ms.push(t_ms);
+        let want = JOINT_COUNT * 4;
+        self.data
+            .extend(joints.iter().take(want).map(|v| *v as f32));
+        for _ in joints.len().min(want)..want {
+            self.data.push(0.0); // short input: pad as unobserved
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.t_ms.len()
+    }
+}
+
 #[wasm_bindgen]
 pub struct SessionAnalyzer {
-    /// Raw frames as pushed — the archive/export path. Never filtered:
-    /// the data flywheel wants sensor truth, not our smoothing choices.
-    seq: Sequence,
+    raw: PackedFrames,
     /// One-Euro-filtered frames — the analysis path (detection, metrics,
     /// guard, profile). Phone-camera world landmarks jitter frame to frame;
     /// central-difference speed amplifies that noise into false strikes.
@@ -94,7 +120,7 @@ impl SessionAnalyzer {
     pub fn new() -> SessionAnalyzer {
         let cfg = DetectorConfig::default();
         SessionAnalyzer {
-            seq: Sequence::default(),
+            raw: PackedFrames::default(),
             seq_f: Sequence::default(),
             filters: (0..JOINT_COUNT)
                 .map(|_| {
@@ -136,7 +162,7 @@ impl SessionAnalyzer {
     /// Push one frame. `joints` must be 21×4 (x, y, z, confidence); z=NaN
     /// when unknown. Coordinates in meters (MediaPipe world landmarks).
     pub fn push_frame(&mut self, t_ms: f64, joints: &[f64]) {
-        if self.seq.frames.len() >= MAX_SESSION_FRAMES {
+        if self.raw.len() >= MAX_SESSION_FRAMES {
             return; // full: callers watch is_full() and auto-end
         }
         let mut pf = PoseFrame::empty(t_ms);
@@ -170,7 +196,7 @@ impl SessionAnalyzer {
                 });
             }
         }
-        self.seq.frames.push(pf);
+        self.raw.push(t_ms, joints);
         self.seq_f.frames.push(ff);
         self.left.advance(&self.seq_f);
         self.right.advance(&self.seq_f);
@@ -191,13 +217,13 @@ impl SessionAnalyzer {
     }
 
     pub fn frame_count(&self) -> usize {
-        self.seq.frames.len()
+        self.raw.len()
     }
 
     /// True once the session hit the frame cap; pushes are ignored from
     /// then on. The UI auto-ends the session to save what was measured.
     pub fn is_full(&self) -> bool {
-        self.seq.frames.len() >= MAX_SESSION_FRAMES
+        self.raw.len() >= MAX_SESSION_FRAMES
     }
 
     /// Live strike count across both hands. O(1): the incremental detectors
@@ -361,29 +387,39 @@ impl SessionAnalyzer {
                 .map(|c| if c == '"' || c == '\\' { '\'' } else { c })
                 .collect()
         }
-        let t0 = self.seq.frames.first().map_or(0.0, |f| f.t_ms);
+        let t0 = self.raw.t_ms.first().copied().unwrap_or(0.0);
         let mut frames = String::new();
-        for (i, f) in self.seq.frames.iter().enumerate() {
+        for i in 0..self.raw.len() {
             if i > 0 {
                 frames.push(',');
             }
-            frames.push_str(&format!("{{\"t_ms\":{:.1},\"joints\":[", f.t_ms - t0));
-            for (j, kp) in f.joints.iter().enumerate() {
+            frames.push_str(&format!(
+                "{{\"t_ms\":{:.1},\"joints\":[",
+                self.raw.t_ms[i] - t0
+            ));
+            for j in 0..JOINT_COUNT {
                 if j > 0 {
                     frames.push(',');
                 }
-                match kp {
-                    Some(k) => {
-                        let z = k.z.map_or("null".to_string(), |z| format!("{z:.4}"));
-                        frames.push_str(&format!(
-                            "{{\"x\":{:.4},\"y\":{:.4},\"z\":{},\"c\":{:.2}}}",
-                            k.x,
-                            k.y,
-                            z,
-                            k.confidence.clamp(0.0, 1.0),
-                        ));
-                    }
-                    None => frames.push_str("null"),
+                let base = i * JOINT_COUNT * 4 + j * 4;
+                let (x, y, z, c) = (
+                    self.raw.data[base],
+                    self.raw.data[base + 1],
+                    self.raw.data[base + 2],
+                    self.raw.data[base + 3],
+                );
+                if c > 0.0 {
+                    let z = if z.is_finite() {
+                        format!("{z:.4}")
+                    } else {
+                        "null".to_string()
+                    };
+                    frames.push_str(&format!(
+                        "{{\"x\":{x:.4},\"y\":{y:.4},\"z\":{z},\"c\":{:.2}}}",
+                        c.clamp(0.0, 1.0),
+                    ));
+                } else {
+                    frames.push_str("null");
                 }
             }
             frames.push_str("]}");

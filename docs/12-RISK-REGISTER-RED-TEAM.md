@@ -21,7 +21,7 @@ _Walked at every phase gate. Scores: Likelihood × Impact (1–5 each). Mitigati
 | R13 | Deep-tier COGS blowout | 2×3 | Keypoint-input jobs default, $0.05 budget measured at G2, on-device deep tier research (RQ5) | [04](04-SYSTEM-ARCHITECTURE.md) §7 |
 | R14 | Demographic accuracy gaps (skin tone, body type) | 3×4 | Stratified golden set + fairness slice gates; diverse P0/P3 collection quotas | [07](07-DATA-STRATEGY-MLOPS.md) §5 |
 | R15 | Apple platform dependency (Vision API changes, review policy) | 2×3 | RTMPose fallback path kept warm; camera/pose behind interfaces | [02](02-CV-RESEARCH.md), [04](04-SYSTEM-ARCHITECTURE.md) |
-| R16 | Session memory growth OOMs low-end phones (measured: 848B/frame × 2 sequences = 87MB @ 30fps·30min, 175MB @ 60fps·30min) | 3×3 | Shipped: 54k-frame cap + UI auto-end (saves summary+archive at the cap); profile-refresh sorts stop at 3k frames. Planned: packed f32 frame storage (~4× smaller) before long-session/HFR features | core-wasm MAX_SESSION_FRAMES |
+| R16 | Session memory growth OOMs low-end phones (was 848B/frame × 2 sequences = 87MB @ 30fps·30min; raw path now packed f32 at 344B/frame → 61MB, filtered analysis sequence is the remaining 848B/frame) | 3×3 | Shipped: 54k-frame cap + UI auto-end (saves summary+archive at the cap); profile-refresh sorts stop at 3k frames; packed f32 raw store. Next if needed: windowed/packed filtered sequence before HFR features | core-wasm MAX_SESSION_FRAMES, PackedFrames |
 
 ## 2. Failure-mode playbook (runtime fallbacks)
 
