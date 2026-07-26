@@ -1,0 +1,16 @@
+id: no_windup_wall_jabs
+name: Wall jabs — no wind-up
+targets_faults: [telegraph_hand_dip]
+mode: shadowboxing
+equipment: none
+space: small
+duration_default: 3x2min
+difficulty: 2   # ramp: add the cross (d3), eyes-closed starts from guard (d4)
+protocol: >
+  Stand in stance with your back close to a wall so a wind-up raps your
+  knuckles: the punch must leave STRAIGHT from guard. App calls single jabs
+  at moderate tempo; the telegraph detector grades the 300ms before each
+  launch. Any dip below guard before firing is flagged live.
+success_criterion: telegraph_hand_dip frequency < 10% of strikes over 3 consecutive sessions
+video_asset: TODO
+status: seed

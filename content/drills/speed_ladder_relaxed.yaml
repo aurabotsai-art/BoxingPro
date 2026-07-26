@@ -1,0 +1,17 @@
+id: speed_ladder_relaxed
+name: Relaxed speed ladder
+targets_faults: [telegraph_hand_dip]
+mode: shadowboxing
+equipment: none
+space: small
+duration_default: 4x1min
+difficulty: 3   # ramp: doubles at each rung (d4)
+protocol: >
+  Four one-minute rungs at 50% → 70% → 85% → 95% intended speed, same jab
+  each time. The point: speed comes from staying loose, not from loading up.
+  The app compares your telegraph dip depth across rungs — if the dip grows
+  with speed, you are trading tells for power. Target is rung 4 speed with
+  rung 1 stillness before launch.
+success_criterion: dip_depth at 95% effort within 2cm of dip_depth at 50% effort in a session
+video_asset: TODO
+status: seed

@@ -1,0 +1,23 @@
+id: telegraph_hand_dip
+category: offense_mechanics
+title: Hand dips before the punch (telegraph)
+detector: telegraph.hand_dip — wrist drops >6cm below guard in the 300ms pre-onset window (min 50% window observed)
+severity_model: frequency × 0.7   # invisible to the fighter; read by any sharp opponent
+trainability: 0.7
+prerequisites: []
+root_causes: [loading_habit, tension, reaching_for_power]
+cause_discriminators:
+  loading_habit: dip present at all speeds, roughly constant depth
+  tension: dip depth grows with intended power (correlates with peak speed)
+  reaching_for_power: dip mostly on rear-hand shots
+explanation: >
+  Dropping the hand before it fires is a wind-up — a flag that tells your
+  opponent what's coming a quarter second early. That's enough time to slip,
+  counter, or step off. Straight from guard is faster AND safer: the punch
+  travels less and announces nothing.
+fixes_by_cause:
+  loading_habit: { drills: [mirror_return_high, no_windup_wall_jabs], cue: "straight from guard" }
+  tension: { drills: [speed_ladder_relaxed], cue: "loose until impact" }
+  reaching_for_power: { drills: [prompt_double_return], cue: "power from the floor, not the wind-up" }
+tier: T1
+status: seed

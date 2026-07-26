@@ -307,10 +307,22 @@ impl SessionAnalyzer {
         match m.guard_recovery_ms {
             // None on a completed strike = never returned to guard within the
             // search window — the worst case, not missing data (faults.rs).
-            Some(ms) if ms > th.guard_recovery_ms => HANDS_DROP_AFTER_PUNCH.into(),
-            None => HANDS_DROP_AFTER_PUNCH.into(),
-            Some(_) => String::new(),
+            Some(ms) if ms > th.guard_recovery_ms => return HANDS_DROP_AFTER_PUNCH.into(),
+            None => return HANDS_DROP_AFTER_PUNCH.into(),
+            Some(_) => {}
         }
+        // Telegraph: hand dipped below guard in the pre-onset window
+        // (content/faults/telegraph_hand_dip.yaml). Checked after the
+        // defensive fault — one cue at a time, exposure first.
+        {
+            use boxingpro_core::telegraph::{detect, TelegraphConfig};
+            if let Some(flags) = detect(&self.seq_f, c, profile, &TelegraphConfig::default()) {
+                if flags.hand_dip {
+                    return "telegraph_hand_dip".into();
+                }
+            }
+        }
+        String::new()
     }
 
     /// All completed strikes, chronological, as a JSON array. `t_ms` is
@@ -719,6 +731,30 @@ mod tests {
             );
             println!("   (jab truth peak {truth:.2} m/s)");
         }
+    }
+
+    #[test]
+    fn pre_punch_hand_dip_yields_telegraph_cue() {
+        // Clean jab, but the wrist sags 10cm below guard for the 300ms before
+        // launch — the classic wind-up tell.
+        use boxingpro_core::types::{Joint, Keypoint};
+        let jab = SyntheticJab {
+            idle_ms: 1200.0,
+            ..SyntheticJab::default()
+        };
+        let mut seq = jab_sequence(1.8, &jab);
+        let dip_start = jab.idle_ms - 300.0;
+        for f in &mut seq.frames {
+            if f.t_ms >= dip_start && f.t_ms < jab.idle_ms {
+                if let Some(w) = f.get(Joint::LeftWrist) {
+                    let dipped = Keypoint { y: w.y - 0.10, ..w };
+                    f.set(Joint::LeftWrist, dipped);
+                }
+            }
+        }
+        let a = analyzer_from(&seq);
+        assert_eq!(a.strike_count(), 1);
+        assert_eq!(a.last_strike_cue(), "telegraph_hand_dip");
     }
 
     #[test]

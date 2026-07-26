@@ -100,6 +100,7 @@ export const PB_SANITY_MPS = 15;
 export const CUE_TEXT: Record<string, string> = {
   hands_drop_after_punch: "Hands back to guard faster",
   overextension: "Don't overreach — stay inside your range",
+  telegraph_hand_dip: "No wind-up — straight from guard",
 };
 export const CUE_SHOW_MS = 2800;
 export const CUE_GAP_MS = 6000;
