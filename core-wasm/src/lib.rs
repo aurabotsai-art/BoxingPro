@@ -397,6 +397,47 @@ impl SessionAnalyzer {
         )
     }
 
+    /// Combos — bursts of ≥2 strikes with ≤600ms between apexes — as a JSON
+    /// array of `{start_ms, n, avg_interval_ms}` (session-relative time).
+    /// Pure cadence data via the core's assembler; punch classes stay
+    /// unclassified until the trained classifier ships.
+    pub fn combos_json(&self) -> String {
+        use boxingpro_core::combos::assemble;
+        use boxingpro_core::faults::StrikeRecord;
+        use boxingpro_core::metrics::StrikeMetrics;
+        use boxingpro_core::types::StrikeClass;
+        let t0 = self.seq_f.frames.first().map_or(0.0, |f| f.t_ms);
+        let mut recs: Vec<StrikeRecord> = [&self.left, &self.right]
+            .into_iter()
+            .flat_map(|d| d.candidates())
+            .map(|c| StrikeRecord {
+                t_apex_ms: self.seq_f.frames[c.peak_idx].t_ms,
+                class: StrikeClass::Unclassified,
+                metrics: StrikeMetrics {
+                    peak_speed_mps: c.peak_speed_mps,
+                    extension_frac: None,
+                    straightness: None,
+                    guard_recovery_ms: None,
+                },
+            })
+            .collect();
+        recs.sort_by(|a, b| a.t_apex_ms.partial_cmp(&b.t_apex_ms).unwrap());
+        let combos = assemble(&recs, 600.0);
+        let items: Vec<String> = combos
+            .iter()
+            .map(|c| {
+                let avg = c.intervals_ms.iter().sum::<f64>() / c.intervals_ms.len() as f64;
+                format!(
+                    "{{\"start_ms\":{:.0},\"n\":{},\"avg_interval_ms\":{:.0}}}",
+                    c.start_ms - t0,
+                    c.classes.len(),
+                    avg,
+                )
+            })
+            .collect();
+        format!("[{}]", items.join(","))
+    }
+
     /// Whole-session summary as JSON: counts per hand, speed stats, average
     /// guard recovery. Deterministic Metrics Core numbers only; anything
     /// unobservable is `null` (honesty rule, docs/03).
@@ -620,6 +661,29 @@ mod tests {
             );
             println!("   (jab truth peak {truth:.2} m/s)");
         }
+    }
+
+    #[test]
+    fn rapid_triple_jab_reads_as_one_combo() {
+        // Three jabs ~430ms apart (idle 100ms): apex gaps < 600ms chain them.
+        let jab = SyntheticJab {
+            idle_ms: 100.0,
+            ..SyntheticJab::default()
+        };
+        let one = jab_sequence(1.8, &jab);
+        let span = one.frames.last().unwrap().t_ms + 1000.0 / jab.fps;
+        let mut seq = Sequence::default();
+        for rep in 0..3 {
+            for f in &one.frames {
+                let mut f = f.clone();
+                f.t_ms += rep as f64 * span;
+                seq.frames.push(f);
+            }
+        }
+        let a = analyzer_from(&seq);
+        assert_eq!(a.strike_count(), 3);
+        let combos = a.combos_json();
+        assert!(combos.contains("\"n\":3"), "{combos}");
     }
 
     #[test]

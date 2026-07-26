@@ -13,6 +13,13 @@ export class SessionAnalyzer {
    * current profile immediately and to every future profile refresh.
    */
   set_stance(stance: string): void;
+  /**
+   * Combos — bursts of ≥2 strikes with ≤600ms between apexes — as a JSON
+   * array of `{start_ms, n, avg_interval_ms}` (session-relative time).
+   * Pure cadence data via the core's assembler; punch classes stay
+   * unclassified until the trained classifier ships.
+   */
+  combos_json(): string;
   frame_count(): number;
   has_profile(): boolean;
   /**
@@ -85,6 +92,7 @@ export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly __wbg_sessionanalyzer_free: (a: number, b: number) => void;
   readonly sessionanalyzer_archive_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
+  readonly sessionanalyzer_combos_json: (a: number, b: number) => void;
   readonly sessionanalyzer_frame_count: (a: number) => number;
   readonly sessionanalyzer_guard_state_now: (a: number, b: number) => void;
   readonly sessionanalyzer_has_profile: (a: number) => number;

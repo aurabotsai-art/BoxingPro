@@ -148,6 +148,29 @@ export class SessionAnalyzer {
         wasm.sessionanalyzer_set_stance(this.__wbg_ptr, ptr0, len0);
     }
     /**
+     * Combos — bursts of ≥2 strikes with ≤600ms between apexes — as a JSON
+     * array of `{start_ms, n, avg_interval_ms}` (session-relative time).
+     * Pure cadence data via the core's assembler; punch classes stay
+     * unclassified until the trained classifier ships.
+     * @returns {string}
+     */
+    combos_json() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.sessionanalyzer_combos_json(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * @returns {number}
      */
     frame_count() {

@@ -168,6 +168,8 @@ type StrikeLogItem = {
   guard_recovery_ms: number | null;
 };
 
+type ComboItem = { start_ms: number; n: number; avg_interval_ms: number };
+
 type RoundStat = {
   n: number; // 1-based round number
   strikes: number;
@@ -351,6 +353,7 @@ export default function SessionPage() {
     history: Summary[];
     log: StrikeLogItem[];
     rounds: RoundStat[];
+    combos: ComboItem[];
     archiveUrl: string;
     archiveBytes: number;
   } | null>(null);
@@ -423,6 +426,7 @@ export default function SessionPage() {
           const s = JSON.parse(analyzer.summary_json()) as Summary;
           s.at = Date.now();
           const log = JSON.parse(analyzer.strikes_json()) as StrikeLogItem[];
+          const combos = JSON.parse(analyzer.combos_json()) as ComboItem[];
           // Keypoint archive (SkeletonArchive v1) — the session's raw data,
           // downloadable for film study. Keypoints only, never video.
           const v = videoRef.current;
@@ -448,7 +452,7 @@ export default function SessionPage() {
               /* private mode / quota: download link still works */
             });
           }
-          setSummary({ current: s, history: history.slice(1, 6), log, rounds, archiveUrl, archiveBytes: archive.length });
+          setSummary({ current: s, history: history.slice(1, 6), log, rounds, combos, archiveUrl, archiveBytes: archive.length });
           resetRef.current?.();
         };
 
@@ -977,6 +981,24 @@ export default function SessionPage() {
                     </span>
                   </div>
                 ))}
+              </>
+            )}
+            {summary.combos.length > 0 && (
+              <>
+                <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "16px 0 6px" }}>
+                  COMBOS ({summary.combos.length})
+                </div>
+                <div style={{ maxHeight: 120, overflowY: "auto" }}>
+                  {summary.combos.slice(-15).map((c, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#c6ccd6", padding: "3px 0", fontVariantNumeric: "tabular-nums" }}>
+                      <span style={{ color: "#9aa0aa" }}>
+                        {Math.floor(c.start_ms / 60000)}:{String(Math.floor((c.start_ms % 60000) / 1000)).padStart(2, "0")}
+                      </span>
+                      <span style={{ fontWeight: 700 }}>{c.n}-punch burst</span>
+                      <span>{Math.round(c.avg_interval_ms)} ms gaps</span>
+                    </div>
+                  ))}
+                </div>
               </>
             )}
             {summary.log.length > 0 && (
