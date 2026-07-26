@@ -283,7 +283,11 @@ export default function SessionPage() {
             const count = analyzer.strike_count();
             if (count > lastStrikes) {
               if (soundOnRef.current && audioRef.current) beep(audioRef.current);
-              const cueId = analyzer.last_strike_cue();
+              // No coaching during rest: punches thrown then are cooldown.
+              const anchor = roundAnchorRef.current;
+              const inRest =
+                anchor != null && ((now - anchor) / 1000) % ROUND_CYCLE_S >= ROUND_WORK_S;
+              const cueId = inRest ? "" : analyzer.last_strike_cue();
               if (cueId && now - lastCueAt > CUE_GAP_MS) {
                 lastCueAt = now;
                 setCue(CUE_TEXT[cueId] ?? null);
