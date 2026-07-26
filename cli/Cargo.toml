@@ -13,3 +13,8 @@ path = "src/main.rs"
 boxingpro-core = { path = "../core" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[dev-dependencies]
+# Round-trip tests generate archives via the browser-facing wrapper (native
+# compile of the rlib) and run them through this binary.
+boxingpro-core-wasm = { path = "../core-wasm" }
