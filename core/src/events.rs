@@ -61,10 +61,30 @@ impl Default for DetectorConfig {
     }
 }
 
-/// Central-difference wrist speed series (m/s) for one hand.
+/// Central-difference wrist speed (m/s) at frame `i`, or `None` when the
+/// wrist is unobserved in a neighbor frame or `i` is a boundary frame.
 /// Uses z when both samples carry it (camera-facing punches move mostly in
-/// depth; 2D-only speed misses them). `None` where the wrist (or a neighbor
-/// frame's wrist) is unobserved.
+/// depth; 2D-only speed misses them).
+fn wrist_speed_at(seq: &Sequence, wrist: Joint, i: usize) -> Option<f64> {
+    if i == 0 || i + 1 >= seq.frames.len() {
+        return None;
+    }
+    let (prev, next) = (&seq.frames[i - 1], &seq.frames[i + 1]);
+    let (a, b) = (prev.get(wrist)?, next.get(wrist)?);
+    let dt_s = (next.t_ms - prev.t_ms) / 1000.0;
+    if dt_s <= 0.0 {
+        return None;
+    }
+    let dz = match (a.z, b.z) {
+        (Some(az), Some(bz)) => bz - az,
+        _ => 0.0,
+    };
+    let d = ((b.x - a.x).powi(2) + (b.y - a.y).powi(2) + dz.powi(2)).sqrt();
+    Some(d / dt_s)
+}
+
+/// Central-difference wrist speed series (m/s) for one hand. `None` where the
+/// wrist (or a neighbor frame's wrist) is unobserved.
 pub fn wrist_speed_series(seq: &Sequence, hand: Hand) -> Vec<Option<f64>> {
     let n = seq.frames.len();
     let mut out = vec![None; n];
@@ -73,18 +93,7 @@ pub fn wrist_speed_series(seq: &Sequence, hand: Hand) -> Vec<Option<f64>> {
     }
     let w = hand.wrist();
     for (i, slot) in out.iter_mut().enumerate().take(n - 1).skip(1) {
-        let (prev, next) = (&seq.frames[i - 1], &seq.frames[i + 1]);
-        if let (Some(a), Some(b)) = (prev.get(w), next.get(w)) {
-            let dt_s = (next.t_ms - prev.t_ms) / 1000.0;
-            if dt_s > 0.0 {
-                let dz = match (a.z, b.z) {
-                    (Some(az), Some(bz)) => bz - az,
-                    _ => 0.0,
-                };
-                let d = ((b.x - a.x).powi(2) + (b.y - a.y).powi(2) + dz.powi(2)).sqrt();
-                *slot = Some(d / dt_s);
-            }
-        }
+        *slot = wrist_speed_at(seq, w, i);
     }
     out
 }
@@ -121,6 +130,81 @@ pub fn detect_strikes(seq: &Sequence, hand: Hand, cfg: &DetectorConfig) -> Vec<S
         push_candidate(&mut out, seq, hand, onset, peak_idx, peak, last, cfg);
     }
     out
+}
+
+/// Incremental strike detector with batch-identical semantics for the live
+/// tier: feed the growing session sequence after each frame and completed
+/// candidates accumulate in O(1) amortized work per frame. The one deliberate
+/// difference from [`detect_strikes`]: a still-open window is not reported
+/// (the batch detector flushes it at end-of-stream; counting a punch mid-
+/// flight would be wrong live).
+#[derive(Debug, Clone)]
+pub struct LiveDetector {
+    hand: Hand,
+    cfg: DetectorConfig,
+    /// Next speed index to evaluate (speed at i needs frame i+1).
+    next_idx: usize,
+    open: Option<(usize, usize, f64)>, // (onset, peak_idx, peak)
+    candidates: Vec<StrikeCandidate>,
+}
+
+impl LiveDetector {
+    pub fn new(hand: Hand, cfg: DetectorConfig) -> LiveDetector {
+        LiveDetector {
+            hand,
+            cfg,
+            next_idx: 1,
+            open: None,
+            candidates: Vec::new(),
+        }
+    }
+
+    pub fn hand(&self) -> Hand {
+        self.hand
+    }
+
+    /// Completed strike candidates so far, oldest first.
+    pub fn candidates(&self) -> &[StrikeCandidate] {
+        &self.candidates
+    }
+
+    /// Process all newly computable frames of `seq` (the same, growing,
+    /// session sequence must be passed each call).
+    pub fn advance(&mut self, seq: &Sequence) {
+        let w = self.hand.wrist();
+        while self.next_idx + 1 < seq.frames.len() {
+            let i = self.next_idx;
+            self.next_idx += 1;
+            let s = match wrist_speed_at(seq, w, i) {
+                Some(v) => v,
+                None => continue, // unobserved frames neither open nor close windows
+            };
+            match self.open {
+                None => {
+                    if s >= self.cfg.onset_speed_mps {
+                        self.open = Some((i, i, s));
+                    }
+                }
+                Some((onset, peak_idx, peak)) => {
+                    if s > peak {
+                        self.open = Some((onset, i, s));
+                    } else if s < self.cfg.release_speed_mps {
+                        push_candidate(
+                            &mut self.candidates,
+                            seq,
+                            self.hand,
+                            onset,
+                            peak_idx,
+                            peak,
+                            i,
+                            &self.cfg,
+                        );
+                        self.open = None;
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

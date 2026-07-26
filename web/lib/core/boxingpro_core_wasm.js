@@ -100,8 +100,8 @@ export class SessionAnalyzer {
         return ret !== 0;
     }
     /**
-     * Live strike count across both hands (recomputed on call; cheap at
-     * session scale, incremental version lands with the Tier-1 optimizer).
+     * Live strike count across both hands. O(1): the incremental detectors
+     * (batch-equivalent, see core pipeline tests) maintain it per frame.
      * @returns {number}
      */
     strike_count() {

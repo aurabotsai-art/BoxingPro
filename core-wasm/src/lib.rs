@@ -10,7 +10,7 @@
 //! unknown depth = NaN z. Feed MediaPipe WORLD landmarks (metric, meters) —
 //! the detector thresholds are calibrated in m/s.
 
-use boxingpro_core::events::{detect_strikes, DetectorConfig, Hand};
+use boxingpro_core::events::{DetectorConfig, Hand, LiveDetector};
 use boxingpro_core::metrics::{strike_metrics, MetricsConfig};
 use boxingpro_core::types::{BodyProfile, Keypoint, PoseFrame, Sequence, Stance, JOINT_COUNT};
 use wasm_bindgen::prelude::*;
@@ -19,6 +19,8 @@ use wasm_bindgen::prelude::*;
 pub struct SessionAnalyzer {
     seq: Sequence,
     profile: Option<BodyProfile>,
+    left: LiveDetector,
+    right: LiveDetector,
 }
 
 fn auto_profile_from(seq: &Sequence) -> Option<BodyProfile> {
@@ -68,9 +70,12 @@ fn auto_profile_from(seq: &Sequence) -> Option<BodyProfile> {
 impl SessionAnalyzer {
     #[wasm_bindgen(constructor)]
     pub fn new() -> SessionAnalyzer {
+        let cfg = DetectorConfig::default();
         SessionAnalyzer {
             seq: Sequence::default(),
             profile: None,
+            left: LiveDetector::new(Hand::Left, cfg.clone()),
+            right: LiveDetector::new(Hand::Right, cfg),
         }
     }
 
@@ -95,6 +100,8 @@ impl SessionAnalyzer {
             }
         }
         self.seq.frames.push(pf);
+        self.left.advance(&self.seq);
+        self.right.advance(&self.seq);
         // Refresh the auto-profile periodically until it locks in.
         if self.profile.is_none() && self.seq.frames.len().is_multiple_of(60) {
             self.profile = auto_profile_from(&self.seq);
@@ -105,12 +112,10 @@ impl SessionAnalyzer {
         self.seq.frames.len()
     }
 
-    /// Live strike count across both hands (recomputed on call; cheap at
-    /// session scale, incremental version lands with the Tier-1 optimizer).
+    /// Live strike count across both hands. O(1): the incremental detectors
+    /// (batch-equivalent, see core pipeline tests) maintain it per frame.
     pub fn strike_count(&self) -> usize {
-        let cfg = DetectorConfig::default();
-        detect_strikes(&self.seq, Hand::Left, &cfg).len()
-            + detect_strikes(&self.seq, Hand::Right, &cfg).len()
+        self.left.candidates().len() + self.right.candidates().len()
     }
 
     /// JSON summary of the most recent strike (speed, extension, guard
@@ -121,20 +126,14 @@ impl SessionAnalyzer {
             Some(p) => p,
             None => return "null".into(),
         };
-        let cfg = DetectorConfig::default();
-        let mut all: Vec<(Hand, boxingpro_core::events::StrikeCandidate)> = Vec::new();
-        for hand in [Hand::Left, Hand::Right] {
-            for c in detect_strikes(&self.seq, hand, &cfg) {
-                all.push((hand, c));
-            }
-        }
-        let Some((hand, c)) = all
+        let Some((hand, c)) = [&self.left, &self.right]
             .into_iter()
+            .filter_map(|d| d.candidates().last().map(|c| (d.hand(), c)))
             .max_by(|a, b| a.1.peak_idx.cmp(&b.1.peak_idx))
         else {
             return "null".into();
         };
-        let m = strike_metrics(&self.seq, &c, profile, &MetricsConfig::default());
+        let m = strike_metrics(&self.seq, c, profile, &MetricsConfig::default());
         format!(
             "{{\"hand\":\"{}\",\"peak_speed\":{:.2},\"extension_frac\":{},\"guard_recovery_ms\":{}}}",
             if hand == Hand::Left { "left" } else { "right" },

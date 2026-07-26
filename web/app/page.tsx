@@ -37,12 +37,30 @@ type Hud = {
   strikes: number;
   last: LastStrike | null;
   profileReady: boolean;
+  /// Seconds since the camera went live.
+  elapsed: number;
 };
+
+/** Short percussive blip — confirms a counted strike without looking. */
+function beep(ac: AudioContext) {
+  const o = ac.createOscillator();
+  const g = ac.createGain();
+  o.type = "square";
+  o.frequency.value = 880;
+  g.gain.setValueAtTime(0.08, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08);
+  o.connect(g).connect(ac.destination);
+  o.start();
+  o.stop(ac.currentTime + 0.09);
+}
 
 export default function SessionPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const resetRef = useRef<(() => void) | null>(null);
+  const audioRef = useRef<AudioContext | null>(null);
+  const soundOnRef = useRef(false);
+  const [soundOn, setSoundOn] = useState(false);
   const [hud, setHud] = useState<Hud>({
     status: "starting…",
     fps: 0,
@@ -50,9 +68,22 @@ export default function SessionPage() {
     strikes: 0,
     last: null,
     profileReady: false,
+    elapsed: 0,
   });
 
   const onReset = useCallback(() => resetRef.current?.(), []);
+  const onSound = useCallback(() => {
+    setSoundOn((on) => {
+      if (!on) {
+        // Created inside the tap handler so autoplay policy allows it.
+        audioRef.current ??= new AudioContext();
+        audioRef.current.resume();
+        beep(audioRef.current);
+      }
+      soundOnRef.current = !on;
+      return !on;
+    });
+  }, []);
 
   useEffect(() => {
     let stop = false;
@@ -71,9 +102,13 @@ export default function SessionPage() {
         const core = await import("@/lib/core/boxingpro_core_wasm.js");
         await core.default({ module_or_path: "/core/boxingpro_core_wasm_bg.wasm" });
         let analyzer = new core.SessionAnalyzer();
+        let sessionStart = performance.now();
+        let lastStrikes = 0;
         resetRef.current = () => {
           analyzer = new core.SessionAnalyzer();
-          setHud((h) => ({ ...h, strikes: 0, last: null, profileReady: false }));
+          sessionStart = performance.now();
+          lastStrikes = 0;
+          setHud((h) => ({ ...h, strikes: 0, last: null, profileReady: false, elapsed: 0 }));
         };
 
         try {
@@ -98,6 +133,7 @@ export default function SessionPage() {
         const joints = new Float64Array(JOINTS * 4);
 
         setHud((h) => ({ ...h, status: "live" }));
+        sessionStart = performance.now();
         const loop = () => {
           if (stop) return;
           const now = performance.now();
@@ -161,15 +197,22 @@ export default function SessionPage() {
             }
             analyzer.push_frame(tMs, joints);
 
+            const count = analyzer.strike_count();
+            if (count > lastStrikes && soundOnRef.current && audioRef.current) {
+              beep(audioRef.current);
+            }
+            lastStrikes = count;
+
             if (frames % 15 === 0) {
               const raw = analyzer.last_strike_json();
               setHud({
                 status: "live",
                 fps: Math.round(fpsWindow.length / 2),
                 poseDetected: !!lm,
-                strikes: analyzer.strike_count(),
+                strikes: count,
                 last: raw === "null" ? null : (JSON.parse(raw) as LastStrike),
                 profileReady: analyzer.has_profile(),
+                elapsed: (now - sessionStart) / 1000,
               });
             }
           }
@@ -225,6 +268,9 @@ export default function SessionPage() {
           <span data-testid="pose" style={pill(hud.poseDetected ? "#16341fdd" : "#3a1a1add")}>
             {hud.poseDetected ? "tracking you" : "step into frame"}
           </span>
+          <span data-testid="clock" style={{ ...pill("#1a1c22dd"), fontVariantNumeric: "tabular-nums" }}>
+            {Math.floor(hud.elapsed / 60)}:{String(Math.floor(hud.elapsed % 60)).padStart(2, "0")}
+          </span>
           <span data-testid="fps" style={pill("#1a1c22dd")}>{hud.fps} fps</span>
         </div>
       </div>
@@ -236,6 +282,11 @@ export default function SessionPage() {
           <div data-testid="strikes" style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, color: "#fff", fontVariantNumeric: "tabular-nums" }}>
             {hud.strikes}
           </div>
+          {hud.elapsed > 15 && hud.strikes > 0 && (
+            <div data-testid="rate" style={{ fontSize: 13, color: "#9aa0aa", fontWeight: 600 }}>
+              {Math.round((hud.strikes / hud.elapsed) * 60)} / min
+            </div>
+          )}
         </div>
 
         {hud.last && (
@@ -254,13 +305,23 @@ export default function SessionPage() {
           </div>
         )}
 
-        <button
-          onClick={onReset}
-          data-testid="reset"
-          style={{ background: "#1a1c22dd", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "10px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
-        >
-          Reset
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onSound}
+            data-testid="sound"
+            aria-label={soundOn ? "mute strike sound" : "enable strike sound"}
+            style={{ background: soundOn ? "#16341fdd" : "#1a1c22dd", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "10px 14px", fontSize: 16, cursor: "pointer" }}
+          >
+            {soundOn ? "🔊" : "🔇"}
+          </button>
+          <button
+            onClick={onReset}
+            data-testid="reset"
+            style={{ background: "#1a1c22dd", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "10px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+          >
+            Reset
+          </button>
+        </div>
       </div>
 
       {!hud.profileReady && hud.status === "live" && (
