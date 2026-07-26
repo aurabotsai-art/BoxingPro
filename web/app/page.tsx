@@ -75,6 +75,9 @@ const GUARD_VIEW: Record<string, [string, string]> = {
   both_down: ["hands low!", "#4a1010dd"],
 };
 const GUARD_WARN_SUSTAIN_MS = 800;
+/** Chain gap for the live combo indicator — matches the core assembler's
+ *  600ms apex-gap rule (core/src/combos.rs via combos_json). */
+const COMBO_GAP_MS = 600;
 const STANCE_KEY = "boxingpro.stance.v1";
 const PB_KEY = "boxingpro.pb.v1";
 const ONBOARDED_KEY = "boxingpro.onboarded.v1";
@@ -331,6 +334,7 @@ export default function SessionPage() {
   }, []);
   const [pb, setPb] = useState<number | null>(null);
   const [pbFlash, setPbFlash] = useState<number | null>(null);
+  const [comboFlash, setComboFlash] = useState<number | null>(null);
   const switchCameraRef = useRef<((mode: "user" | "environment") => void) | null>(null);
   const [facing, setFacing] = useState<"user" | "environment">("user");
   const onFlipCamera = useCallback(() => {
@@ -410,6 +414,9 @@ export default function SessionPage() {
         let sessionStart = performance.now();
         let lastStrikes = 0;
         let lastCueAt = -Infinity;
+        let lastStrikeAt = -Infinity;
+        let comboRun = 0;
+        let comboHideTimer: ReturnType<typeof setTimeout> | undefined;
         let lastRoundPhase: "work" | "rest" | null = null;
         let guardRaw = "";
         let guardSince = 0;
@@ -564,6 +571,15 @@ export default function SessionPage() {
             const count = analyzer.strike_count();
             if (count > lastStrikes) {
               if (soundOnRef.current && audioRef.current) beep(audioRef.current);
+              // Live combo run: chained when the previous strike completed
+              // within the assembler's 600ms gap (display-side mirror).
+              comboRun = now - lastStrikeAt <= COMBO_GAP_MS ? comboRun + (count - lastStrikes) : 1;
+              lastStrikeAt = now;
+              if (comboRun >= 2) {
+                setComboFlash(comboRun);
+                clearTimeout(comboHideTimer);
+                comboHideTimer = setTimeout(() => setComboFlash(null), 1600);
+              }
               // Personal best: sanity-capped so pose glitches can't set it.
               const lastRaw = analyzer.last_strike_json();
               if (lastRaw !== "null") {
@@ -725,6 +741,11 @@ export default function SessionPage() {
           <div style={{ fontSize: 12, letterSpacing: 2, color: "#9aa0aa", fontWeight: 700 }}>STRIKES</div>
           <div data-testid="strikes" style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, color: "#fff", fontVariantNumeric: "tabular-nums" }}>
             {hud.strikes}
+            {comboFlash != null && (
+              <span data-testid="combo" style={{ fontSize: 26, fontWeight: 900, color: "#ffd75e", marginLeft: 10, verticalAlign: "super" }}>
+                ×{comboFlash}
+              </span>
+            )}
           </div>
           {hud.elapsed > 15 && hud.strikes > 0 && (
             <div data-testid="rate" style={{ fontSize: 13, color: "#9aa0aa", fontWeight: 600 }}>
