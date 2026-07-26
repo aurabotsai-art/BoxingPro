@@ -109,6 +109,28 @@ export class SessionAnalyzer {
         return ret >>> 0;
     }
     /**
+     * Whole-session summary as JSON: counts per hand, speed stats, average
+     * guard recovery. Deterministic Metrics Core numbers only; anything
+     * unobservable is `null` (honesty rule, docs/03).
+     * @returns {string}
+     */
+    summary_json() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.sessionanalyzer_summary_json(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_1(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * JSON summary of the most recent strike (speed, extension, guard
      * recovery) or `null` if none/unprofiled. Numbers via the same Metrics
      * Core code paths as every other tier.

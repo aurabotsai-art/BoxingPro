@@ -146,6 +146,49 @@ impl SessionAnalyzer {
     pub fn has_profile(&self) -> bool {
         self.profile.is_some()
     }
+
+    /// Whole-session summary as JSON: counts per hand, speed stats, average
+    /// guard recovery. Deterministic Metrics Core numbers only; anything
+    /// unobservable is `null` (honesty rule, docs/03).
+    pub fn summary_json(&self) -> String {
+        let dur_ms = match (self.seq.frames.first(), self.seq.frames.last()) {
+            (Some(a), Some(b)) => b.t_ms - a.t_ms,
+            _ => 0.0,
+        };
+        let mut speeds: Vec<f64> = Vec::new();
+        let mut recoveries: Vec<f64> = Vec::new();
+        for det in [&self.left, &self.right] {
+            for c in det.candidates() {
+                speeds.push(c.peak_speed_mps);
+                if let Some(p) = &self.profile {
+                    let m = strike_metrics(&self.seq, c, p, &MetricsConfig::default());
+                    if let Some(r) = m.guard_recovery_ms {
+                        recoveries.push(r);
+                    }
+                }
+            }
+        }
+        let mean = |v: &[f64]| v.iter().sum::<f64>() / v.len() as f64;
+        let fmt_opt =
+            |v: Option<f64>, prec: usize| v.map_or("null".into(), |x| format!("{x:.prec$}"));
+        let avg_speed = (!speeds.is_empty()).then(|| mean(&speeds));
+        let max_speed = speeds
+            .iter()
+            .cloned()
+            .fold(None::<f64>, |m, s| Some(m.map_or(s, |m| m.max(s))));
+        let avg_recovery = (!recoveries.is_empty()).then(|| mean(&recoveries));
+        let per_min = (dur_ms > 1000.0).then(|| (speeds.len() as f64) / (dur_ms / 60_000.0));
+        format!(
+            "{{\"duration_ms\":{:.0},\"strikes_left\":{},\"strikes_right\":{},\"avg_peak_speed\":{},\"max_peak_speed\":{},\"avg_guard_recovery_ms\":{},\"strikes_per_min\":{}}}",
+            dur_ms,
+            self.left.candidates().len(),
+            self.right.candidates().len(),
+            fmt_opt(avg_speed, 2),
+            fmt_opt(max_speed, 2),
+            fmt_opt(avg_recovery, 0),
+            fmt_opt(per_min, 1),
+        )
+    }
 }
 
 impl Default for SessionAnalyzer {

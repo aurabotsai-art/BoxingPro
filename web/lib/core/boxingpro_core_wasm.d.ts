@@ -16,6 +16,12 @@ export class SessionAnalyzer {
    */
   strike_count(): number;
   /**
+   * Whole-session summary as JSON: counts per hand, speed stats, average
+   * guard recovery. Deterministic Metrics Core numbers only; anything
+   * unobservable is `null` (honesty rule, docs/03).
+   */
+  summary_json(): string;
+  /**
    * JSON summary of the most recent strike (speed, extension, guard
    * recovery) or `null` if none/unprofiled. Numbers via the same Metrics
    * Core code paths as every other tier.
@@ -35,6 +41,7 @@ export interface InitOutput {
   readonly sessionanalyzer_new: () => number;
   readonly sessionanalyzer_push_frame: (a: number, b: number, c: number, d: number) => void;
   readonly sessionanalyzer_strike_count: (a: number) => number;
+  readonly sessionanalyzer_summary_json: (a: number, b: number) => void;
   readonly __wbindgen_export_0: (a: number, b: number) => number;
   readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
   readonly __wbindgen_export_1: (a: number, b: number, c: number) => void;

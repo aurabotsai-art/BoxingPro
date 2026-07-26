@@ -47,6 +47,36 @@ const ROUND_WORK_S = 180;
 const ROUND_REST_S = 60;
 const ROUND_CYCLE_S = ROUND_WORK_S + ROUND_REST_S;
 
+type Summary = {
+  duration_ms: number;
+  strikes_left: number;
+  strikes_right: number;
+  avg_peak_speed: number | null;
+  max_peak_speed: number | null;
+  avg_guard_recovery_ms: number | null;
+  strikes_per_min: number | null;
+  /** Epoch ms; stamped when saved to history. */
+  at: number;
+};
+
+const HISTORY_KEY = "boxingpro.sessions.v1";
+
+function loadHistory(): Summary[] {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]") as Summary[];
+  } catch {
+    return [];
+  }
+}
+
+function saveToHistory(s: Summary): Summary[] {
+  const all = [s, ...loadHistory()].slice(0, 20);
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
+  } catch { /* quota/private mode: history is best-effort */ }
+  return all;
+}
+
 /** Short percussive blip — confirms a counted strike without looking. */
 function beep(ac: AudioContext) {
   const o = ac.createOscillator();
@@ -101,7 +131,11 @@ export default function SessionPage() {
     round: null,
   });
 
+  const endRef = useRef<(() => void) | null>(null);
+  const [summary, setSummary] = useState<{ current: Summary; history: Summary[] } | null>(null);
+
   const onReset = useCallback(() => resetRef.current?.(), []);
+  const onEnd = useCallback(() => endRef.current?.(), []);
   const onSound = useCallback(() => {
     setSoundOn((on) => {
       if (!on) {
@@ -141,6 +175,13 @@ export default function SessionPage() {
           lastStrikes = 0;
           if (roundAnchorRef.current != null) roundAnchorRef.current = performance.now();
           setHud((h) => ({ ...h, strikes: 0, last: null, profileReady: false, elapsed: 0 }));
+        };
+        endRef.current = () => {
+          const s = JSON.parse(analyzer.summary_json()) as Summary;
+          s.at = Date.now();
+          const history = s.duration_ms > 5000 ? saveToHistory(s) : [s, ...loadHistory()];
+          setSummary({ current: s, history: history.slice(1, 6) });
+          resetRef.current?.();
         };
 
         try {
@@ -388,12 +429,72 @@ export default function SessionPage() {
           >
             Reset
           </button>
+          <button
+            onClick={onEnd}
+            data-testid="end"
+            style={{ background: "#8a1f1fdd", color: "#fff", border: "1px solid #a83232", borderRadius: 12, padding: "10px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+          >
+            End
+          </button>
         </div>
       </div>
 
       {!hud.profileReady && hud.status === "live" && (
         <div data-testid="profile" style={{ position: "absolute", bottom: 110, left: 0, right: 0, textAlign: "center", color: "#9aa0aa", fontSize: 13 }}>
           calibrating to your body — keep moving…
+        </div>
+      )}
+
+      {summary && (
+        <div
+          data-testid="summary"
+          style={{ position: "absolute", inset: 0, background: "#0a0a0cd9", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div style={{ background: "#14161c", border: "1px solid #262a33", borderRadius: 18, padding: "22px 26px", width: "min(420px, 92vw)", maxHeight: "84vh", overflowY: "auto" }}>
+            <div style={{ fontSize: 12, letterSpacing: 2, color: "#9aa0aa", fontWeight: 700, marginBottom: 12 }}>SESSION SUMMARY</div>
+            {(() => {
+              const s = summary.current;
+              const total = s.strikes_left + s.strikes_right;
+              const mins = Math.floor(s.duration_ms / 60000);
+              const secs = Math.floor((s.duration_ms % 60000) / 1000);
+              const row = (label: string, value: string) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #1e222a", fontSize: 15 }}>
+                  <span style={{ color: "#9aa0aa" }}>{label}</span>
+                  <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{value}</span>
+                </div>
+              );
+              return (
+                <>
+                  {row("Duration", `${mins}:${String(secs).padStart(2, "0")}`)}
+                  {row("Strikes", `${total} (L ${s.strikes_left} / R ${s.strikes_right})`)}
+                  {row("Pace", s.strikes_per_min != null ? `${s.strikes_per_min.toFixed(1)} /min` : "—")}
+                  {row("Avg hand speed", s.avg_peak_speed != null ? `${s.avg_peak_speed.toFixed(1)} m/s` : "—")}
+                  {row("Fastest", s.max_peak_speed != null ? `${s.max_peak_speed.toFixed(1)} m/s` : "—")}
+                  {row("Avg guard return", s.avg_guard_recovery_ms != null ? `${Math.round(s.avg_guard_recovery_ms)} ms` : "—")}
+                </>
+              );
+            })()}
+            {summary.history.length > 0 && (
+              <>
+                <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "16px 0 6px" }}>PREVIOUS SESSIONS</div>
+                {summary.history.map((h, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#c6ccd6", padding: "4px 0" }}>
+                    <span>{new Date(h.at).toLocaleDateString()} {new Date(h.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {h.strikes_left + h.strikes_right} strikes{h.avg_peak_speed != null ? ` · ${h.avg_peak_speed.toFixed(1)} m/s` : ""}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
+            <button
+              onClick={() => setSummary(null)}
+              data-testid="close-summary"
+              style={{ marginTop: 18, width: "100%", background: "#1a1c22", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+            >
+              New session
+            </button>
+          </div>
         </div>
       )}
     </main>
