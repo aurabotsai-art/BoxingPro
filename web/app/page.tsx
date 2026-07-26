@@ -169,6 +169,13 @@ export default function SessionPage() {
     let stop = false;
     let stream: MediaStream | null = null;
 
+    // Offline support: after first visit, models/wasm/pages come from cache.
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        /* http or unsupported: app still works online */
+      });
+    }
+
     (async () => {
       try {
         setHud((h) => ({ ...h, status: "loading models…" }));
