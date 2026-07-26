@@ -28,10 +28,16 @@ impl OneEuro {
         }
     }
 
-    /// Defaults tuned for keypoint streams at 30–120fps; revisit against
-    /// device noise measurements in Phase 0 (docs/11 S0.1).
+    /// Defaults tuned for metric keypoint streams at 30–120fps. Beta is
+    /// deliberately large for meter-unit punch tracking: empirical sweep
+    /// (core-wasm probe_filter_params, synthetic 9.17 m/s jab + ±70mm
+    /// jitter) showed beta 0.3 under-reads peak speed by 45% and flattens
+    /// hook arcs to straightness 0.93, while beta 5 reads peak within 2%,
+    /// keeps arcs curved, and rejects jitter identically (the alternating
+    /// noise derivative averages to ~0, so the speed-scaled cutoff never
+    /// opens for it). Revisit against real device noise in Phase 0 (S0.1).
     pub fn keypoint_default() -> Self {
-        Self::new(1.0, 0.3)
+        Self::new(1.0, 5.0)
     }
 
     fn alpha(cutoff_hz: f64, dt_s: f64) -> f64 {

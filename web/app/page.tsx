@@ -28,6 +28,9 @@ type LastStrike = {
   peak_speed: number;
   extension_frac: number | null;
   guard_recovery_ms: number | null;
+  straightness: number | null;
+  /** "straight" | "curved" | null — coarse path geometry, not punch class. */
+  shape: string | null;
 };
 
 type Hud = {
@@ -612,6 +615,11 @@ export default function SessionPage() {
           <div data-testid="last" style={{ textAlign: "right", background: "#14161ccc", border: "1px solid #262a33", borderRadius: 14, padding: "10px 16px", backdropFilter: "blur(8px)" }}>
             <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700 }}>
               LAST — {hud.last.hand.toUpperCase()} HAND
+              {hud.last.shape && (
+                <span style={{ color: hud.last.shape === "straight" ? "#7ec8e0" : "#e0b87e", marginLeft: 6 }}>
+                  · {hud.last.shape.toUpperCase()}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 26, fontWeight: 800, color: "#61dafb" }}>
               {hud.last.peak_speed.toFixed(1)} <span style={{ fontSize: 14, color: "#9aa0aa" }}>m/s</span>

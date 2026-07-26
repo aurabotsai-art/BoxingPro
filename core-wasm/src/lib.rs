@@ -203,12 +203,32 @@ impl SessionAnalyzer {
             return "null".into();
         };
         let m = strike_metrics(&self.seq_f, c, profile, &MetricsConfig::default());
+        // Coarse path-shape readout from straightness (chord/path): honest
+        // T1 geometry, NOT punch classification — a wide band stays null
+        // rather than guessing (docs/03). Real classes come with the
+        // trained classifier. Bands account for the analysis filter's
+        // residual corner-cutting (probe_filter_params).
+        let shape = match m.straightness {
+            Some(s) if s >= 0.90 => "\"straight\"",
+            Some(s) if s <= 0.80 => "\"curved\"",
+            _ => "null",
+        };
+        // Extension honesty gate: until the auto-profile has seen a full
+        // punch, arm_length is a guard-distance artifact and extension_frac
+        // reads absurd (500%+). No plausible human reach → no claim.
+        let ext = if profile.arm_length_m >= 0.4 {
+            m.extension_frac
+        } else {
+            None
+        };
         format!(
-            "{{\"hand\":\"{}\",\"peak_speed\":{:.2},\"extension_frac\":{},\"guard_recovery_ms\":{}}}",
+            "{{\"hand\":\"{}\",\"peak_speed\":{:.2},\"extension_frac\":{},\"guard_recovery_ms\":{},\"straightness\":{},\"shape\":{}}}",
             if hand == Hand::Left { "left" } else { "right" },
             m.peak_speed_mps,
-            m.extension_frac.map_or("null".into(), |v| format!("{v:.3}")),
+            ext.map_or("null".into(), |v| format!("{v:.3}")),
             m.guard_recovery_ms.map_or("null".into(), |v| format!("{v:.0}")),
+            m.straightness.map_or("null".into(), |v| format!("{v:.3}")),
+            shape,
         )
     }
 
@@ -474,6 +494,128 @@ mod tests {
         let s = a.summary_json();
         assert!(s.contains("\"strikes_left\":1"), "{s}");
         assert!(s.contains("\"strikes_right\":0"), "{s}");
+    }
+
+    fn analyzer_with(seq: &Sequence, mc: f64, beta: f64) -> SessionAnalyzer {
+        let mut a = SessionAnalyzer::new();
+        a.filters = (0..JOINT_COUNT)
+            .map(|_| {
+                [
+                    OneEuro::new(mc, beta),
+                    OneEuro::new(mc, beta),
+                    OneEuro::new(mc, beta),
+                ]
+            })
+            .collect();
+        let mut buf = vec![0.0; JOINT_COUNT * 4];
+        for f in &seq.frames {
+            for (i, j) in f.joints.iter().enumerate() {
+                let (x, y, z, c) = match j {
+                    Some(k) => (k.x, k.y, k.z.unwrap_or(f64::NAN), k.confidence),
+                    None => (0.0, 0.0, f64::NAN, 0.0),
+                };
+                buf[i * 4] = x;
+                buf[i * 4 + 1] = y;
+                buf[i * 4 + 2] = z;
+                buf[i * 4 + 3] = c;
+            }
+            a.push_frame(f.t_ms, &buf);
+        }
+        a
+    }
+
+    /// Semicircular hook-like arc at punch speed, guard-idle bookends.
+    fn arc_sequence() -> Sequence {
+        use boxingpro_core::synthetic::standing_frame;
+        use boxingpro_core::types::{Joint, Keypoint};
+        let mut seq = Sequence::default();
+        let dt = 1000.0 / 60.0;
+        let guard = [-0.16, 1.55];
+        let (n_idle, n_arc) = (75, 10);
+        for i in 0..(n_idle + n_arc + 60) {
+            let t = i as f64 * dt;
+            let mut f = standing_frame(t, 1.8);
+            let wrist = if i < n_idle {
+                guard
+            } else if i < n_idle + n_arc {
+                let p = (i - n_idle) as f64 / n_arc as f64;
+                let ang = core::f64::consts::PI * (1.0 - p);
+                [
+                    guard[0] + 0.25 + 0.25 * ang.cos(),
+                    guard[1] + 0.25 * ang.sin(),
+                ]
+            } else {
+                [guard[0] + 0.5, guard[1]]
+            };
+            f.set(
+                Joint::LeftWrist,
+                Keypoint {
+                    x: wrist[0],
+                    y: wrist[1],
+                    z: None,
+                    confidence: 1.0,
+                },
+            );
+            seq.frames.push(f);
+        }
+        seq
+    }
+
+    #[test]
+    #[ignore] // param-sweep probe; run with --ignored --nocapture when tuning
+    fn probe_filter_params() {
+        let jab = SyntheticJab {
+            idle_ms: 1200.0,
+            ..SyntheticJab::default()
+        };
+        let jab_seq = jab_sequence(1.8, &jab);
+        let noisy = jitter(&jab_seq, 0.07);
+        let arc = arc_sequence();
+        let truth = jab.expected_peak_speed_mps();
+        for (mc, beta) in [
+            (1.0, 0.3),
+            (1.0, 1.0),
+            (1.5, 1.5),
+            (1.0, 2.0),
+            (1.0, 3.0),
+            (1.0, 5.0),
+        ] {
+            let a = analyzer_with(&jab_seq, mc, beta);
+            let n = analyzer_with(&noisy, mc, beta);
+            let c = analyzer_with(&arc, mc, beta);
+            println!(
+                "mc={mc} beta={beta}: jab={} | noisy_count={} | arc_count={} arc={}",
+                a.last_strike_json(),
+                n.strike_count(),
+                c.strike_count(),
+                c.last_strike_json(),
+            );
+            println!("   (jab truth peak {truth:.2} m/s)");
+        }
+    }
+
+    #[test]
+    fn straight_jab_reads_shape_straight_and_arc_reads_curved() {
+        // Straight jab → shape "straight".
+        let jab = SyntheticJab {
+            idle_ms: 1200.0,
+            ..SyntheticJab::default()
+        };
+        let a = analyzer_from(&jab_sequence(1.8, &jab));
+        assert!(
+            a.last_strike_json().contains("\"shape\":\"straight\""),
+            "{}",
+            a.last_strike_json()
+        );
+
+        // Semicircular hook-like arc → "curved".
+        let b = analyzer_from(&arc_sequence());
+        assert_eq!(b.strike_count(), 1, "arc must register as one strike");
+        assert!(
+            b.last_strike_json().contains("\"shape\":\"curved\""),
+            "{}",
+            b.last_strike_json()
+        );
     }
 
     /// Deterministic per-(frame, joint, axis) pseudo-noise in [-amp, amp].
