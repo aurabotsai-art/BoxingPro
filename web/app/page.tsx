@@ -57,6 +57,8 @@ type Summary = {
   strikes_left: number;
   strikes_right: number;
   avg_peak_speed: number | null;
+  avg_peak_speed_left: number | null;
+  avg_peak_speed_right: number | null;
   max_peak_speed: number | null;
   avg_guard_recovery_ms: number | null;
   strikes_per_min: number | null;
@@ -75,6 +77,7 @@ const GUARD_VIEW: Record<string, [string, string]> = {
 const GUARD_WARN_SUSTAIN_MS = 800;
 const STANCE_KEY = "boxingpro.stance.v1";
 const PB_KEY = "boxingpro.pb.v1";
+const ONBOARDED_KEY = "boxingpro.onboarded.v1";
 /** Speeds above this are pose glitches (elite hands top out ~13 m/s), not PBs. */
 const PB_SANITY_MPS = 15;
 
@@ -216,6 +219,18 @@ export default function SessionPage() {
   const [stance, setStance] = useState<"orthodox" | "southpaw">("orthodox");
   const [showSettings, setShowSettings] = useState(false);
   const pbRef = useRef<number | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(ONBOARDED_KEY)) setShowOnboarding(true);
+    } catch { /* private mode: skip onboarding */ }
+  }, []);
+  const onOnboarded = useCallback(() => {
+    setShowOnboarding(false);
+    try {
+      localStorage.setItem(ONBOARDED_KEY, "1");
+    } catch { /* private mode */ }
+  }, []);
   const [pb, setPb] = useState<number | null>(null);
   const [pbFlash, setPbFlash] = useState<number | null>(null);
   const switchCameraRef = useRef<((mode: "user" | "environment") => void) | null>(null);
@@ -717,6 +732,39 @@ export default function SessionPage() {
         </div>
       )}
 
+      {showOnboarding && (
+        <div
+          data-testid="onboarding"
+          style={{ position: "absolute", inset: 0, background: "#0a0a0ce6", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 10 }}
+        >
+          <div style={{ maxWidth: 380, textAlign: "center" }}>
+            <div style={{ fontWeight: 800, fontSize: 24, marginBottom: 18 }}>
+              <span style={{ color: "#ff4d4d" }}>Boxing</span>Pro
+            </div>
+            {[
+              ["📱", "Prop your phone at chest height — a shelf, tripod, or leaned against a bottle."],
+              ["↔️", "Step back until your whole body is in frame (2–3 m works well)."],
+              ["🥊", "Face the camera in your stance. Tracking calibrates in the first seconds — stay loose, then let punches go."],
+            ].map(([icon, text]) => (
+              <div key={text} style={{ display: "flex", gap: 12, alignItems: "flex-start", textAlign: "left", margin: "0 0 14px" }}>
+                <span style={{ fontSize: 22 }}>{icon}</span>
+                <span style={{ fontSize: 15, color: "#c6ccd6", lineHeight: 1.45 }}>{text}</span>
+              </div>
+            ))}
+            <div style={{ fontSize: 12, color: "#9aa0aa", margin: "4px 0 16px" }}>
+              Everything runs on your phone. Video never leaves the device.
+            </div>
+            <button
+              onClick={onOnboarded}
+              data-testid="onboarding-start"
+              style={{ width: "100%", background: "#ff4d4d", color: "#fff", border: "none", borderRadius: 12, padding: "13px 0", fontSize: 16, fontWeight: 800, cursor: "pointer" }}
+            >
+              Let&apos;s go
+            </button>
+          </div>
+        </div>
+      )}
+
       {pbFlash != null && (
         <div
           data-testid="pb-flash"
@@ -769,6 +817,11 @@ export default function SessionPage() {
                   {row("Strikes", `${total} (L ${s.strikes_left} / R ${s.strikes_right})`)}
                   {row("Pace", s.strikes_per_min != null ? `${s.strikes_per_min.toFixed(1)} /min` : "—")}
                   {row("Avg hand speed", s.avg_peak_speed != null ? `${s.avg_peak_speed.toFixed(1)} m/s` : "—")}
+                  {(s.avg_peak_speed_left != null || s.avg_peak_speed_right != null) &&
+                    row(
+                      "L / R split",
+                      `${s.avg_peak_speed_left != null ? s.avg_peak_speed_left.toFixed(1) : "—"} / ${s.avg_peak_speed_right != null ? s.avg_peak_speed_right.toFixed(1) : "—"} m/s`,
+                    )}
                   {row("Fastest", s.max_peak_speed != null ? `${s.max_peak_speed.toFixed(1)} m/s` : "—")}
                   {row("Avg guard return", s.avg_guard_recovery_ms != null ? `${Math.round(s.avg_guard_recovery_ms)} ms` : "—")}
                   {row("Guard up", s.guard_up_frac != null ? `${Math.round(s.guard_up_frac * 100)}% of the time` : "—")}

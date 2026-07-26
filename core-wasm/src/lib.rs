@@ -384,10 +384,12 @@ impl SessionAnalyzer {
             _ => 0.0,
         };
         let mut speeds: Vec<f64> = Vec::new();
+        let mut speeds_by_hand: [Vec<f64>; 2] = [Vec::new(), Vec::new()];
         let mut recoveries: Vec<f64> = Vec::new();
-        for det in [&self.left, &self.right] {
+        for (hi, det) in [&self.left, &self.right].into_iter().enumerate() {
             for c in det.candidates() {
                 speeds.push(c.peak_speed_mps);
+                speeds_by_hand[hi].push(c.peak_speed_mps);
                 if let Some(p) = &self.profile {
                     let m = strike_metrics(&self.seq_f, c, p, &MetricsConfig::default());
                     if let Some(r) = m.guard_recovery_ms {
@@ -400,6 +402,8 @@ impl SessionAnalyzer {
         let fmt_opt =
             |v: Option<f64>, prec: usize| v.map_or("null".into(), |x| format!("{x:.prec$}"));
         let avg_speed = (!speeds.is_empty()).then(|| mean(&speeds));
+        let avg_left = (!speeds_by_hand[0].is_empty()).then(|| mean(&speeds_by_hand[0]));
+        let avg_right = (!speeds_by_hand[1].is_empty()).then(|| mean(&speeds_by_hand[1]));
         let max_speed = speeds
             .iter()
             .cloned()
@@ -414,11 +418,13 @@ impl SessionAnalyzer {
             guard_up_fraction(&series, 300)
         });
         format!(
-            "{{\"duration_ms\":{:.0},\"strikes_left\":{},\"strikes_right\":{},\"avg_peak_speed\":{},\"max_peak_speed\":{},\"avg_guard_recovery_ms\":{},\"strikes_per_min\":{},\"guard_up_frac\":{}}}",
+            "{{\"duration_ms\":{:.0},\"strikes_left\":{},\"strikes_right\":{},\"avg_peak_speed\":{},\"avg_peak_speed_left\":{},\"avg_peak_speed_right\":{},\"max_peak_speed\":{},\"avg_guard_recovery_ms\":{},\"strikes_per_min\":{},\"guard_up_frac\":{}}}",
             dur_ms,
             self.left.candidates().len(),
             self.right.candidates().len(),
             fmt_opt(avg_speed, 2),
+            fmt_opt(avg_left, 2),
+            fmt_opt(avg_right, 2),
             fmt_opt(max_speed, 2),
             fmt_opt(avg_recovery, 0),
             fmt_opt(per_min, 1),
