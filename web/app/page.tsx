@@ -1004,6 +1004,42 @@ export default function SessionPage() {
                 ))}
               </>
             )}
+            {summary.log.length >= 3 && (
+              <>
+                <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "16px 0 6px" }}>
+                  HAND SPEED OVER SESSION
+                </div>
+                {(() => {
+                  const W = 360;
+                  const H = 46;
+                  const tMax = Math.max(summary.current.duration_ms, 1);
+                  const vMax = Math.max(...summary.log.map((k) => k.peak_speed), 1);
+                  const pt = (k: StrikeLogItem) =>
+                    [(k.t_ms / tMax) * W, H - 4 - (k.peak_speed / vMax) * (H - 10)] as const;
+                  return (
+                    <svg
+                      data-testid="sparkline"
+                      viewBox={`0 0 ${W} ${H}`}
+                      style={{ width: "100%", height: H, display: "block" }}
+                    >
+                      <polyline
+                        fill="none"
+                        stroke="#3d4450"
+                        strokeWidth="1.5"
+                        points={summary.log.map((k) => pt(k).join(",")).join(" ")}
+                      />
+                      {summary.log.map((k, i) => {
+                        const [x, y] = pt(k);
+                        return <circle key={i} cx={x} cy={y} r="2.6" fill={k.hand === "left" ? "#61dafb" : "#ffb86c"} />;
+                      })}
+                      <text x={W - 2} y={10} textAnchor="end" fontSize="9" fill="#9aa0aa">
+                        {vMax.toFixed(1)} m/s
+                      </text>
+                    </svg>
+                  );
+                })()}
+              </>
+            )}
             {summary.combos.length > 0 && (
               <>
                 <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "16px 0 6px" }}>
