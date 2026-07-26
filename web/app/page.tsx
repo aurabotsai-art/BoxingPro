@@ -76,6 +76,29 @@ export default function SessionPage() {
   const [stance, setStance] = useState<"orthodox" | "southpaw">("orthodox");
   const [showSettings, setShowSettings] = useState(false);
   const [past, setPast] = useState<Array<{ s: Summary; hasArchive: boolean }>>([]);
+  // PWA install: Chrome fires beforeinstallprompt (stash + offer a button);
+  // iOS Safari never does — show Share→Add-to-Home-Screen instructions.
+  const installEvtRef = useRef<{ prompt: () => Promise<unknown> } | null>(null);
+  const [canInstall, setCanInstall] = useState(false);
+  const [iosInstallHint, setIosInstallHint] = useState(false);
+  useEffect(() => {
+    const onBip = (e: Event) => {
+      e.preventDefault();
+      installEvtRef.current = e as unknown as { prompt: () => Promise<unknown> };
+      setCanInstall(true);
+    };
+    window.addEventListener("beforeinstallprompt", onBip);
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    setIosInstallHint(/iPhone|iPad|iPod/.test(navigator.userAgent) && !standalone);
+    return () => window.removeEventListener("beforeinstallprompt", onBip);
+  }, []);
+  const onInstall = useCallback(() => {
+    installEvtRef.current?.prompt();
+    installEvtRef.current = null;
+    setCanInstall(false);
+  }, []);
   const onOpenSettings = useCallback(() => {
     setShowSettings((v) => {
       if (!v) {
@@ -655,6 +678,20 @@ export default function SessionPage() {
           >
             🔄 {facing === "user" ? "Front (mirrored)" : "Rear"} — tap to switch
           </button>
+          {canInstall && (
+            <button
+              onClick={onInstall}
+              data-testid="install"
+              style={{ width: "100%", marginTop: 10, background: "#16341f", color: "#d9f2df", border: "1px solid #2f7a44", borderRadius: 10, padding: "9px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+            >
+              📲 Install as an app
+            </button>
+          )}
+          {iosInstallHint && !canInstall && (
+            <div style={{ fontSize: 11, color: "#9aa0aa", marginTop: 10 }}>
+              📲 Install: tap Share, then &quot;Add to Home Screen&quot; — full screen, works offline.
+            </div>
+          )}
           {past.length > 0 && (
             <>
               <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "12px 0 6px" }}>PAST SESSIONS</div>
