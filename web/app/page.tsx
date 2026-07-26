@@ -46,6 +46,8 @@ type Hud = {
   round: { n: number; phase: "work" | "rest"; remaining: number } | null;
   /// Debounced guard state id ("" = unknown/unprofiled).
   guard: string;
+  /// True when fps or pose-visibility is too low for trustworthy numbers.
+  lowQuality: boolean;
 };
 
 const ROUND_WORK_S = 180;
@@ -287,6 +289,7 @@ export default function SessionPage() {
     elapsed: 0,
     round: null,
     guard: "",
+    lowQuality: false,
   });
 
   const endRef = useRef<(() => void) | null>(null);
@@ -501,6 +504,7 @@ export default function SessionPage() {
         const t0 = performance.now();
         let frames = 0;
         let fpsWindow: number[] = [];
+        let poseHits: number[] = [];
         const joints = new Float64Array(JOINTS * 4);
 
         setHud((h) => ({ ...h, status: "live" }));
@@ -521,6 +525,8 @@ export default function SessionPage() {
 
             const lm = res.landmarks?.[0];
             const wl = res.worldLandmarks?.[0];
+            if (lm) poseHits.push(now);
+            poseHits = poseHits.filter((t) => now - t < 2000);
             joints.fill(0);
 
             if (lm && wl) {
@@ -649,9 +655,17 @@ export default function SessionPage() {
 
             if (frames % 15 === 0) {
               const raw = analyzer.last_strike_json();
+              const fps = Math.round(fpsWindow.length / 2);
+              const poseRatio = fpsWindow.length > 0 ? poseHits.length / fpsWindow.length : 1;
+              // Confidence conditions on measured fps (capture spec): warn
+              // when numbers are becoming untrustworthy. Startup grace 5s;
+              // fully-absent pose is handled by the 'step into frame' pill.
+              const lowQuality =
+                (now - sessionStart) / 1000 > 5 &&
+                (fps < 18 || (poseHits.length > 0 && poseRatio < 0.7));
               setHud({
                 status: "live",
-                fps: Math.round(fpsWindow.length / 2),
+                fps,
                 poseDetected: !!lm,
                 strikes: count,
                 last: raw === "null" ? null : (JSON.parse(raw) as LastStrike),
@@ -659,6 +673,7 @@ export default function SessionPage() {
                 elapsed: (now - sessionStart) / 1000,
                 round,
                 guard: guardShown,
+                lowQuality,
               });
             }
           }
@@ -731,7 +746,7 @@ export default function SessionPage() {
               ? `R${hud.round.n} ${hud.round.phase === "rest" ? "REST " : ""}${Math.floor(hud.round.remaining / 60)}:${String(Math.floor(hud.round.remaining % 60)).padStart(2, "0")}`
               : `${Math.floor(hud.elapsed / 60)}:${String(Math.floor(hud.elapsed % 60)).padStart(2, "0")}`}
           </span>
-          <span data-testid="fps" style={pill("#1a1c22dd")}>{hud.fps} fps</span>
+          <span data-testid="fps" style={pill(hud.lowQuality ? "#4a2410dd" : "#1a1c22dd")}>{hud.fps} fps</span>
         </div>
       </div>
 
@@ -944,6 +959,14 @@ export default function SessionPage() {
         >
           <span style={{ background: "#7a3a10ee", border: "1px solid #b25a20", color: "#ffe3cf", borderRadius: 14, padding: "12px 22px", fontSize: 20, fontWeight: 800, letterSpacing: 0.3, boxShadow: "0 4px 24px #0008" }}>
             {cue}
+          </span>
+        </div>
+      )}
+
+      {hud.lowQuality && (
+        <div data-testid="quality" style={{ position: "absolute", top: 64, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
+          <span style={{ background: "#4a2410dd", border: "1px solid #7a4420", color: "#ffd9b8", borderRadius: 10, padding: "6px 14px", fontSize: 12, fontWeight: 700 }}>
+            ⚠ low tracking quality — add light or step back; speeds may under-read
           </span>
         </div>
       )}
