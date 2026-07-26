@@ -37,6 +37,16 @@ jobs:
       - run: npm install --no-save ajv-cli@5 ajv-formats@2
       - run: npx ajv compile --spec=draft2020 -c ajv-formats -s "contracts/*.schema.json"
 
+  pipeline:
+    name: Full-chain contract check (archive → analysis → coach)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: pip install jsonschema pyyaml
+      - run: tools/pipeline_check.sh
+
   web:
     name: Web app (production build, mirrors Vercel)
     runs-on: ubuntu-latest

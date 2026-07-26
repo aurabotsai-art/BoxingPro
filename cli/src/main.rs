@@ -165,6 +165,7 @@ fn analyze(archive_path: &str) -> Result<Value, String> {
             let m = strike_metrics(&seq, &c, &profile, &met);
             let apex_t = seq.frames[c.peak_idx].t_ms;
             events.push(json!({
+                "id": format!("ev-{}-{}", if hand == Hand::Left { "l" } else { "r" }, c.peak_idx),
                 "kind": "strike",
                 "hand": if c.hand == Hand::Left { "left" } else { "right" },
                 "t_start_ms": seq.frames[c.onset_idx].t_ms,
@@ -221,9 +222,46 @@ fn analyze(archive_path: &str) -> Result<Value, String> {
         },
         "counts": { "strikes": events.len(), "frames": seq.frames.len(),
                      "duration_ms": seq.duration_ms() },
+        "aggregates": aggregates(&records, seq.duration_ms()),
         "events": events,
         "faults": faults,
     }))
+}
+
+/// Session-level rollups in the contract's measurement shape
+/// (value/unit/tier[/confidence]); the schema requires this block and the
+/// coach layer keys drills off it.
+fn aggregates(records: &[StrikeRecord], duration_ms: f64) -> Value {
+    let speeds: Vec<f64> = records.iter().map(|r| r.metrics.peak_speed_mps).collect();
+    let mut agg = serde_json::Map::new();
+    agg.insert(
+        "strike_count".into(),
+        json!({"value": records.len(), "unit": null, "tier": "T0"}),
+    );
+    agg.insert(
+        "duration_s".into(),
+        json!({"value": duration_ms / 1000.0, "unit": "s", "tier": "T0"}),
+    );
+    if duration_ms > 1000.0 {
+        agg.insert(
+            "strikes_per_min".into(),
+            json!({"value": records.len() as f64 / (duration_ms / 60_000.0),
+                   "unit": null, "tier": "T0"}),
+        );
+    }
+    if !speeds.is_empty() {
+        let avg = speeds.iter().sum::<f64>() / speeds.len() as f64;
+        let max = speeds.iter().cloned().fold(f64::MIN, f64::max);
+        agg.insert(
+            "avg_peak_hand_speed".into(),
+            json!({"value": avg, "unit": "m/s", "tier": "T1"}),
+        );
+        agg.insert(
+            "max_peak_hand_speed".into(),
+            json!({"value": max, "unit": "m/s", "tier": "T1"}),
+        );
+    }
+    Value::Object(agg)
 }
 
 /// Emit a synthetic single-jab SkeletonArchive (known ground truth) — lets
