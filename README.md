@@ -2,19 +2,27 @@
 
 **The world's best AI boxing coach — phone camera only.** No sensors, no gloves, no trackers. BoxingPro watches you train (shadowboxing, heavy bag, footwork, defense), analyzes every movement with computer vision, and coaches you like an elite trainer: what's breaking down, *why* it matters, and exactly how to fix it — then runs the training plan that gets you there.
 
-> **Status: Phase 0 (de-risking) in progress.** The planning suite in [`docs/`](docs/00-INDEX.md) governs all work. Environment-independent groundwork is built; device-dependent spikes (pose bake-off, dataset bootstrap) are next.
+> **Status: Phase 0 in progress — live v1 in production at [boxing-pro.vercel.app](https://boxing-pro.vercel.app).** The planning suite in [`docs/`](docs/00-INDEX.md) governs all work.
+
+**What the live app does today** (all on-device, video never leaves the phone): real-time 3D strike detection with jitter-filtered metric world landmarks · per-punch speed (m/s), path shape, guard-recovery time · live coaching cues (slow guard return, pre-punch telegraph) · guard-state watch · round timer with bells · combo bursts · personal bests · session summaries (per-round, per-hand, rhythm, footwork, speed sparkline) · keypoint archive export (SkeletonArchive v1) + on-device history · installable PWA, fully offline after first load.
 
 ## Repository layout
 
 ```
 docs/        Planning suite (00-INDEX.md is the map) — binding on all work
 core/        Metrics Core: shared Rust biomechanics library (zero deps, golden tests)
+core-wasm/   Browser API over the core (wasm-bindgen); same numbers as CLI/server
+cli/         `boxingpro analyze | synth-jab` — SkeletonArchive in, SessionAnalysis out
+web/         Next.js PWA (the live app); auto-deploys to Vercel from main
 contracts/   Versioned JSON Schemas: SkeletonArchive, SessionAnalysis, CoachOutput
 content/     Coaching knowledge as data: fault taxonomy + drill library (YAML)
+coach_brain/ Deterministic template renderer + prompts + eval suite
+tools/       Video ingestion, labeler, content linter, full-chain pipeline check
+workers/     Deep-tier (Tier 2) worker skeleton
 supabase/    Database migrations (Postgres + RLS per docs/08)
 ```
 
-Verify the core: `cd core && cargo test` (also `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` — CI enforces all three).
+Verify everything: `cargo fmt --check --all && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace` (50+ tests), then `tools/pipeline_check.sh` for the full archive→analysis→coach contract chain.
 
 ## Planning suite
 
