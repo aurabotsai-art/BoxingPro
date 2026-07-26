@@ -39,7 +39,13 @@ type Hud = {
   profileReady: boolean;
   /// Seconds since the camera went live.
   elapsed: number;
+  /// Round-timer state, or null in freestyle mode.
+  round: { n: number; phase: "work" | "rest"; remaining: number } | null;
 };
+
+const ROUND_WORK_S = 180;
+const ROUND_REST_S = 60;
+const ROUND_CYCLE_S = ROUND_WORK_S + ROUND_REST_S;
 
 /** Short percussive blip — confirms a counted strike without looking. */
 function beep(ac: AudioContext) {
@@ -54,6 +60,20 @@ function beep(ac: AudioContext) {
   o.stop(ac.currentTime + 0.09);
 }
 
+/** Two-tone bell for round start/end. */
+function bell(ac: AudioContext) {
+  const o = ac.createOscillator();
+  const g = ac.createGain();
+  o.type = "sine";
+  o.frequency.setValueAtTime(660, ac.currentTime);
+  o.frequency.exponentialRampToValueAtTime(440, ac.currentTime + 0.4);
+  g.gain.setValueAtTime(0.18, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.6);
+  o.connect(g).connect(ac.destination);
+  o.start();
+  o.stop(ac.currentTime + 0.65);
+}
+
 export default function SessionPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -61,6 +81,15 @@ export default function SessionPage() {
   const audioRef = useRef<AudioContext | null>(null);
   const soundOnRef = useRef(false);
   const [soundOn, setSoundOn] = useState(false);
+  const roundAnchorRef = useRef<number | null>(null); // perf.now() when rounds started
+  const [roundsOn, setRoundsOn] = useState(false);
+  const onRounds = useCallback(() => {
+    setRoundsOn((on) => {
+      roundAnchorRef.current = on ? null : performance.now();
+      if (!on && soundOnRef.current && audioRef.current) bell(audioRef.current);
+      return !on;
+    });
+  }, []);
   const [hud, setHud] = useState<Hud>({
     status: "starting…",
     fps: 0,
@@ -69,6 +98,7 @@ export default function SessionPage() {
     last: null,
     profileReady: false,
     elapsed: 0,
+    round: null,
   });
 
   const onReset = useCallback(() => resetRef.current?.(), []);
@@ -104,10 +134,12 @@ export default function SessionPage() {
         let analyzer = new core.SessionAnalyzer();
         let sessionStart = performance.now();
         let lastStrikes = 0;
+        let lastRoundPhase: "work" | "rest" | null = null;
         resetRef.current = () => {
           analyzer = new core.SessionAnalyzer();
           sessionStart = performance.now();
           lastStrikes = 0;
+          if (roundAnchorRef.current != null) roundAnchorRef.current = performance.now();
           setHud((h) => ({ ...h, strikes: 0, last: null, profileReady: false, elapsed: 0 }));
         };
 
@@ -203,6 +235,24 @@ export default function SessionPage() {
             }
             lastStrikes = count;
 
+            let round: Hud["round"] = null;
+            if (roundAnchorRef.current != null) {
+              const rt = (now - roundAnchorRef.current) / 1000;
+              const within = rt % ROUND_CYCLE_S;
+              const phase: "work" | "rest" = within < ROUND_WORK_S ? "work" : "rest";
+              round = {
+                n: Math.floor(rt / ROUND_CYCLE_S) + 1,
+                phase,
+                remaining: phase === "work" ? ROUND_WORK_S - within : ROUND_CYCLE_S - within,
+              };
+              if (lastRoundPhase !== null && lastRoundPhase !== phase && soundOnRef.current && audioRef.current) {
+                bell(audioRef.current);
+              }
+              lastRoundPhase = phase;
+            } else {
+              lastRoundPhase = null;
+            }
+
             if (frames % 15 === 0) {
               const raw = analyzer.last_strike_json();
               setHud({
@@ -213,6 +263,7 @@ export default function SessionPage() {
                 last: raw === "null" ? null : (JSON.parse(raw) as LastStrike),
                 profileReady: analyzer.has_profile(),
                 elapsed: (now - sessionStart) / 1000,
+                round,
               });
             }
           }
@@ -268,8 +319,16 @@ export default function SessionPage() {
           <span data-testid="pose" style={pill(hud.poseDetected ? "#16341fdd" : "#3a1a1add")}>
             {hud.poseDetected ? "tracking you" : "step into frame"}
           </span>
-          <span data-testid="clock" style={{ ...pill("#1a1c22dd"), fontVariantNumeric: "tabular-nums" }}>
-            {Math.floor(hud.elapsed / 60)}:{String(Math.floor(hud.elapsed % 60)).padStart(2, "0")}
+          <span
+            data-testid="clock"
+            style={{
+              ...pill(hud.round ? (hud.round.phase === "work" ? "#16341fdd" : "#4a2410dd") : "#1a1c22dd"),
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {hud.round
+              ? `R${hud.round.n} ${hud.round.phase === "rest" ? "REST " : ""}${Math.floor(hud.round.remaining / 60)}:${String(Math.floor(hud.round.remaining % 60)).padStart(2, "0")}`
+              : `${Math.floor(hud.elapsed / 60)}:${String(Math.floor(hud.elapsed % 60)).padStart(2, "0")}`}
           </span>
           <span data-testid="fps" style={pill("#1a1c22dd")}>{hud.fps} fps</span>
         </div>
@@ -306,6 +365,14 @@ export default function SessionPage() {
         )}
 
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onRounds}
+            data-testid="rounds"
+            aria-label={roundsOn ? "stop rounds" : "start 3-minute rounds"}
+            style={{ background: roundsOn ? "#16341fdd" : "#1a1c22dd", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "10px 14px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+          >
+            {roundsOn ? "■ Rounds" : "▶ Rounds"}
+          </button>
           <button
             onClick={onSound}
             data-testid="sound"
