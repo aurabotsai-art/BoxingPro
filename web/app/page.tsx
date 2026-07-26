@@ -79,6 +79,41 @@ type StrikeLogItem = {
   guard_recovery_ms: number | null;
 };
 
+type RoundStat = {
+  n: number; // 1-based round number
+  strikes: number;
+  avgSpeed: number | null;
+  slowGuard: number; // strikes with recovery > 550ms
+};
+
+/** Bucket work-phase strikes into rounds. offsetMs = rounds start relative
+ *  to the session clock; strikes before it (or in rest) are not counted. */
+function bucketRounds(log: StrikeLogItem[], offsetMs: number, durationMs: number): RoundStat[] {
+  const cycle = ROUND_CYCLE_S * 1000;
+  const work = ROUND_WORK_S * 1000;
+  const count = Math.max(1, Math.floor(Math.max(0, durationMs - offsetMs) / cycle) + 1);
+  const rounds: RoundStat[] = Array.from({ length: count }, (_, i) => ({
+    n: i + 1,
+    strikes: 0,
+    avgSpeed: null,
+    slowGuard: 0,
+  }));
+  const speeds: number[][] = rounds.map(() => []);
+  for (const k of log) {
+    const rel = k.t_ms - offsetMs;
+    if (rel < 0) continue;
+    const n = Math.floor(rel / cycle);
+    if (n >= rounds.length || rel % cycle >= work) continue;
+    rounds[n].strikes++;
+    speeds[n].push(k.peak_speed);
+    if (k.guard_recovery_ms != null && k.guard_recovery_ms > 550) rounds[n].slowGuard++;
+  }
+  rounds.forEach((r, i) => {
+    if (speeds[i].length) r.avgSpeed = speeds[i].reduce((a, b) => a + b, 0) / speeds[i].length;
+  });
+  return rounds;
+}
+
 const HISTORY_KEY = "boxingpro.sessions.v1";
 
 /** Cue id (from the Metrics Core fault layer) → words. One cue at a time. */
@@ -177,6 +212,7 @@ export default function SessionPage() {
     current: Summary;
     history: Summary[];
     log: StrikeLogItem[];
+    rounds: RoundStat[];
     archiveUrl: string;
     archiveBytes: number;
   } | null>(null);
@@ -262,8 +298,14 @@ export default function SessionPage() {
             v?.videoHeight ?? 0,
           );
           const archiveUrl = URL.createObjectURL(new Blob([archive], { type: "application/json" }));
+          // Per-round breakdown: both clocks are performance.now-based, so
+          // the rounds anchor maps onto the strike log's session-relative t.
+          const rounds =
+            roundAnchorRef.current != null
+              ? bucketRounds(log, Math.max(0, roundAnchorRef.current - sessionStart), s.duration_ms)
+              : [];
           const history = s.duration_ms > 5000 ? saveToHistory(s) : [s, ...loadHistory()];
-          setSummary({ current: s, history: history.slice(1, 6), log, archiveUrl, archiveBytes: archive.length });
+          setSummary({ current: s, history: history.slice(1, 6), log, rounds, archiveUrl, archiveBytes: archive.length });
           resetRef.current?.();
         };
 
@@ -640,6 +682,21 @@ export default function SessionPage() {
                 </>
               );
             })()}
+            {summary.rounds.length > 0 && (
+              <>
+                <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "16px 0 6px" }}>ROUNDS</div>
+                {summary.rounds.map((r) => (
+                  <div key={r.n} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#c6ccd6", padding: "3px 0", fontVariantNumeric: "tabular-nums" }}>
+                    <span style={{ fontWeight: 700 }}>R{r.n}</span>
+                    <span>{r.strikes} strikes</span>
+                    <span>{r.avgSpeed != null ? `${r.avgSpeed.toFixed(1)} m/s` : "—"}</span>
+                    <span style={{ color: r.slowGuard > 0 ? "#ff8a5c" : "#7ee08a" }}>
+                      {r.slowGuard > 0 ? `${r.slowGuard} slow guard` : "guard ok"}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
             {summary.log.length > 0 && (
               <>
                 <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "16px 0 6px" }}>
