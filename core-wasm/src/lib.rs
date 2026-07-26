@@ -21,6 +21,9 @@ pub struct SessionAnalyzer {
     profile: Option<BodyProfile>,
     left: LiveDetector,
     right: LiveDetector,
+    /// User-declared stance; applied to every (re)computed auto-profile.
+    /// Manual input by design — stance auto-detection is not credible yet.
+    stance: Stance,
 }
 
 fn auto_profile_from(seq: &Sequence) -> Option<BodyProfile> {
@@ -76,6 +79,28 @@ impl SessionAnalyzer {
             profile: None,
             left: LiveDetector::new(Hand::Left, cfg.clone()),
             right: LiveDetector::new(Hand::Right, cfg),
+            stance: Stance::Orthodox,
+        }
+    }
+
+    /// Declare the boxer's stance ("orthodox" | "southpaw"). Applies to the
+    /// current profile immediately and to every future profile refresh.
+    pub fn set_stance(&mut self, stance: &str) {
+        self.stance = if stance == "southpaw" {
+            Stance::Southpaw
+        } else {
+            Stance::Orthodox
+        };
+        if let Some(p) = &mut self.profile {
+            p.stance = self.stance;
+        }
+    }
+
+    /// Current stance as a string (for HUD/state display).
+    pub fn stance(&self) -> String {
+        match self.stance {
+            Stance::Orthodox => "orthodox".into(),
+            Stance::Southpaw => "southpaw".into(),
         }
     }
 
@@ -109,7 +134,8 @@ impl SessionAnalyzer {
         // seconds.
         let n = self.seq.frames.len();
         if (self.profile.is_none() && n.is_multiple_of(60)) || n.is_multiple_of(300) {
-            if let Some(p) = auto_profile_from(&self.seq) {
+            if let Some(mut p) = auto_profile_from(&self.seq) {
+                p.stance = self.stance; // refresh must not clobber the declared stance
                 self.profile = Some(p);
             }
         }
@@ -415,6 +441,39 @@ mod tests {
         let s = a.summary_json();
         assert!(s.contains("\"strikes_left\":1"), "{s}");
         assert!(s.contains("\"strikes_right\":0"), "{s}");
+    }
+
+    #[test]
+    fn declared_stance_survives_profile_refresh() {
+        // Profile refreshes every 300 frames; a declared southpaw stance must
+        // not be clobbered back to orthodox by the refresh.
+        let jab = SyntheticJab {
+            idle_ms: 3000.0, // total ≈ 374 frames → at least one 300-frame refresh
+            ..SyntheticJab::default()
+        };
+        let seq = jab_sequence(1.8, &jab);
+        let mut a = SessionAnalyzer::new();
+        a.set_stance("southpaw");
+        let mut buf = vec![0.0; JOINT_COUNT * 4];
+        for f in &seq.frames {
+            for (i, j) in f.joints.iter().enumerate() {
+                let (x, y, z, c) = match j {
+                    Some(k) => (k.x, k.y, k.z.unwrap_or(f64::NAN), k.confidence),
+                    None => (0.0, 0.0, f64::NAN, 0.0),
+                };
+                buf[i * 4] = x;
+                buf[i * 4 + 1] = y;
+                buf[i * 4 + 2] = z;
+                buf[i * 4 + 3] = c;
+            }
+            a.push_frame(f.t_ms, &buf);
+        }
+        assert!(a.frame_count() > 300, "must cross a refresh boundary");
+        assert!(a.has_profile());
+        assert_eq!(a.stance(), "southpaw");
+        // Lead hand for a southpaw is the right; the left jab in this
+        // synthetic is therefore the REAR hand — guard math must still work.
+        assert_eq!(a.guard_state_now(), "both_high");
     }
 
     #[test]

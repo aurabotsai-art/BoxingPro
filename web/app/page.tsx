@@ -70,6 +70,7 @@ const GUARD_VIEW: Record<string, [string, string]> = {
   both_down: ["hands low!", "#4a1010dd"],
 };
 const GUARD_WARN_SUSTAIN_MS = 800;
+const STANCE_KEY = "boxingpro.stance.v1";
 
 type StrikeLogItem = {
   t_ms: number;
@@ -160,6 +161,18 @@ export default function SessionPage() {
   });
 
   const endRef = useRef<(() => void) | null>(null);
+  const stanceRef = useRef<"orthodox" | "southpaw">("orthodox");
+  const applyStanceRef = useRef<((s: string) => void) | null>(null);
+  const [stance, setStance] = useState<"orthodox" | "southpaw">("orthodox");
+  const [showSettings, setShowSettings] = useState(false);
+  const onStance = useCallback((s: "orthodox" | "southpaw") => {
+    stanceRef.current = s;
+    setStance(s);
+    try {
+      localStorage.setItem(STANCE_KEY, s);
+    } catch { /* private mode */ }
+    applyStanceRef.current?.(s);
+  }, []);
   const [summary, setSummary] = useState<{
     current: Summary;
     history: Summary[];
@@ -207,7 +220,16 @@ export default function SessionPage() {
         });
         const core = await import("@/lib/core/boxingpro_core_wasm.js");
         await core.default({ module_or_path: "/core/boxingpro_core_wasm_bg.wasm" });
+        try {
+          const saved = localStorage.getItem(STANCE_KEY);
+          if (saved === "southpaw" || saved === "orthodox") {
+            stanceRef.current = saved;
+            setStance(saved);
+          }
+        } catch { /* private mode */ }
         let analyzer = new core.SessionAnalyzer();
+        analyzer.set_stance(stanceRef.current);
+        applyStanceRef.current = (s) => analyzer.set_stance(s);
         let sessionStart = performance.now();
         let lastStrikes = 0;
         let lastCueAt = -Infinity;
@@ -216,6 +238,8 @@ export default function SessionPage() {
         let guardSince = 0;
         resetRef.current = () => {
           analyzer = new core.SessionAnalyzer();
+          analyzer.set_stance(stanceRef.current);
+          applyStanceRef.current = (s) => analyzer.set_stance(s);
           sessionStart = performance.now();
           lastStrikes = 0;
           if (roundAnchorRef.current != null) roundAnchorRef.current = performance.now();
@@ -494,6 +518,14 @@ export default function SessionPage() {
 
         <div style={{ display: "flex", gap: 8 }}>
           <button
+            onClick={() => setShowSettings((v) => !v)}
+            data-testid="settings"
+            aria-label="settings"
+            style={{ background: showSettings ? "#16341fdd" : "#1a1c22dd", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "10px 14px", fontSize: 16, cursor: "pointer" }}
+          >
+            ⚙
+          </button>
+          <button
             onClick={onRounds}
             data-testid="rounds"
             aria-label={roundsOn ? "stop rounds" : "start 3-minute rounds"}
@@ -525,6 +557,41 @@ export default function SessionPage() {
           </button>
         </div>
       </div>
+
+      {showSettings && (
+        <div
+          data-testid="settings-sheet"
+          style={{ position: "absolute", right: 16, bottom: 96, background: "#14161c", border: "1px solid #262a33", borderRadius: 14, padding: "14px 16px", width: 240 }}
+        >
+          <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, marginBottom: 8 }}>STANCE</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {(["orthodox", "southpaw"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => onStance(s)}
+                data-testid={`stance-${s}`}
+                style={{
+                  flex: 1,
+                  background: stance === s ? "#1d4f2add" : "#1a1c22",
+                  color: "#eee",
+                  border: `1px solid ${stance === s ? "#2f7a44" : "#2c313c"}`,
+                  borderRadius: 10,
+                  padding: "9px 0",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  textTransform: "capitalize",
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: "#9aa0aa", marginTop: 8 }}>
+            Sets which hand is your lead — guard labels and lead-hand metrics depend on it.
+          </div>
+        </div>
+      )}
 
       {cue && (
         <div

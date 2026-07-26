@@ -8,6 +8,11 @@ export class SessionAnalyzer {
    * when unknown. Coordinates in meters (MediaPipe world landmarks).
    */
   push_frame(t_ms: number, joints: Float64Array): void;
+  /**
+   * Declare the boxer's stance ("orthodox" | "southpaw"). Applies to the
+   * current profile immediately and to every future profile refresh.
+   */
+  set_stance(stance: string): void;
   frame_count(): number;
   has_profile(): boolean;
   /**
@@ -63,6 +68,10 @@ export class SessionAnalyzer {
    */
   last_strike_json(): string;
   constructor();
+  /**
+   * Current stance as a string (for HUD/state display).
+   */
+  stance(): string;
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -78,12 +87,14 @@ export interface InitOutput {
   readonly sessionanalyzer_last_strike_json: (a: number, b: number) => void;
   readonly sessionanalyzer_new: () => number;
   readonly sessionanalyzer_push_frame: (a: number, b: number, c: number, d: number) => void;
+  readonly sessionanalyzer_set_stance: (a: number, b: number, c: number) => void;
+  readonly sessionanalyzer_stance: (a: number, b: number) => void;
   readonly sessionanalyzer_strike_count: (a: number) => number;
   readonly sessionanalyzer_strikes_json: (a: number, b: number) => void;
   readonly sessionanalyzer_summary_json: (a: number, b: number) => void;
   readonly __wbindgen_export_0: (a: number, b: number) => number;
-  readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
   readonly __wbindgen_export_1: (a: number, b: number, c: number, d: number) => number;
+  readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
   readonly __wbindgen_export_2: (a: number, b: number, c: number) => void;
 }
 

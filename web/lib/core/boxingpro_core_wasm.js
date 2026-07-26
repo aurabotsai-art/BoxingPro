@@ -138,6 +138,16 @@ export class SessionAnalyzer {
         wasm.sessionanalyzer_push_frame(this.__wbg_ptr, t_ms, ptr0, len0);
     }
     /**
+     * Declare the boxer's stance ("orthodox" | "southpaw"). Applies to the
+     * current profile immediately and to every future profile refresh.
+     * @param {string} stance
+     */
+    set_stance(stance) {
+        const ptr0 = passStringToWasm0(stance, wasm.__wbindgen_export_0, wasm.__wbindgen_export_1);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.sessionanalyzer_set_stance(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
      * @returns {number}
      */
     frame_count() {
@@ -323,6 +333,26 @@ export class SessionAnalyzer {
         this.__wbg_ptr = ret >>> 0;
         SessionAnalyzerFinalization.register(this, this.__wbg_ptr, this);
         return this;
+    }
+    /**
+     * Current stance as a string (for HUD/state display).
+     * @returns {string}
+     */
+    stance() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.sessionanalyzer_stance(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
+        }
     }
 }
 if (Symbol.dispose) SessionAnalyzer.prototype[Symbol.dispose] = SessionAnalyzer.prototype.free;
