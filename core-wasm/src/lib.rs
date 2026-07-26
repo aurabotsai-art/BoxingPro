@@ -548,8 +548,22 @@ impl SessionAnalyzer {
             Some(r) => (Some(r.cadence_hz), Some(r.predictability_index)),
             None => (None, None),
         };
+        // Footwork: step count (ankle lift/land hysteresis) and stance width
+        // vs a band from the profile's shoulder width. Cropped-feet sessions
+        // honestly report nothing (min 300 observed both-ankle frames).
+        let steps = {
+            use boxingpro_core::footwork::{detect_steps, Foot, StepConfig};
+            let c = StepConfig::default();
+            detect_steps(&self.seq_f, Foot::Left, &c).len()
+                + detect_steps(&self.seq_f, Foot::Right, &c).len()
+        };
+        let stance_w = self.profile.as_ref().and_then(|p| {
+            use boxingpro_core::footwork::stance_integrity;
+            let sw = p.shoulder_width_m;
+            stance_integrity(&self.seq_f, 0.9 * sw, 1.9 * sw, 300)
+        });
         format!(
-            "{{\"duration_ms\":{:.0},\"strikes_left\":{},\"strikes_right\":{},\"avg_peak_speed\":{},\"avg_peak_speed_left\":{},\"avg_peak_speed_right\":{},\"max_peak_speed\":{},\"avg_guard_recovery_ms\":{},\"strikes_per_min\":{},\"guard_up_frac\":{},\"bounce_cadence_hz\":{},\"rhythm_predictability\":{}}}",
+            "{{\"duration_ms\":{:.0},\"strikes_left\":{},\"strikes_right\":{},\"avg_peak_speed\":{},\"avg_peak_speed_left\":{},\"avg_peak_speed_right\":{},\"max_peak_speed\":{},\"avg_guard_recovery_ms\":{},\"strikes_per_min\":{},\"guard_up_frac\":{},\"bounce_cadence_hz\":{},\"rhythm_predictability\":{},\"steps\":{},\"avg_stance_width_m\":{},\"stance_oob_frac\":{}}}",
             dur_ms,
             self.left.candidates().len(),
             self.right.candidates().len(),
@@ -562,6 +576,9 @@ impl SessionAnalyzer {
             fmt_opt(guard_up, 3),
             fmt_opt(cadence, 2),
             fmt_opt(predict, 3),
+            steps,
+            fmt_opt(stance_w.map(|s| s.0), 3),
+            fmt_opt(stance_w.map(|s| s.1), 3),
         )
     }
 }
@@ -914,6 +931,11 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         let frac = v["guard_up_frac"].as_f64().expect("gate open");
         assert!(frac > 0.8, "mostly at guard, got {frac}");
+        // Footwork on a planted synthetic: zero steps, stance width ≈ ankle
+        // separation (0.12 × height), gate open (>300 both-ankle frames).
+        assert_eq!(v["steps"], 0);
+        let w = v["avg_stance_width_m"].as_f64().expect("ankles visible");
+        assert!((w - 0.12 * 1.8).abs() < 0.02, "stance width {w}");
     }
 
     #[test]

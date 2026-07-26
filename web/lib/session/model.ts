@@ -60,6 +60,9 @@ export type Summary = {
   guard_up_frac: number | null;
   bounce_cadence_hz: number | null;
   rhythm_predictability: number | null;
+  steps: number;
+  avg_stance_width_m: number | null;
+  stance_oob_frac: number | null;
   /** Epoch ms; stamped when saved to history. */
   at: number;
 };

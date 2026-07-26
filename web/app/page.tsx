@@ -794,6 +794,12 @@ export default function SessionPage() {
                       "Rhythm predictability",
                       `${Math.round(s.rhythm_predictability * 100)}%${s.rhythm_predictability > 0.75 ? " — timeable, mix it up" : ""}`,
                     )}
+                  {s.steps > 0 && row("Steps", `${s.steps}`)}
+                  {s.avg_stance_width_m != null &&
+                    row(
+                      "Stance width",
+                      `${s.avg_stance_width_m.toFixed(2)} m avg${s.stance_oob_frac != null && s.stance_oob_frac > 0.25 ? ` · off-base ${Math.round(s.stance_oob_frac * 100)}%` : ""}`,
+                    )}
                 </>
               );
             })()}
