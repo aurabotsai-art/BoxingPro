@@ -128,6 +128,30 @@ async function idbSaveArchive(at: number, archive: string): Promise<void> {
   db.close();
 }
 
+async function idbArchiveKeys(): Promise<number[]> {
+  const db = await idbOpen();
+  const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readonly");
+    const req = tx.objectStore(IDB_STORE).getAllKeys();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  db.close();
+  return (keys as number[]).sort((a, b) => b - a);
+}
+
+async function idbGetArchive(at: number): Promise<string | null> {
+  const db = await idbOpen();
+  const rec = await new Promise<{ archive?: string } | undefined>((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readonly");
+    const req = tx.objectStore(IDB_STORE).get(at);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  db.close();
+  return rec?.archive ?? null;
+}
+
 function loadPb(): number | null {
   try {
     const v = Number(localStorage.getItem(PB_KEY));
@@ -265,6 +289,31 @@ export default function SessionPage() {
   const applyStanceRef = useRef<((s: string) => void) | null>(null);
   const [stance, setStance] = useState<"orthodox" | "southpaw">("orthodox");
   const [showSettings, setShowSettings] = useState(false);
+  const [past, setPast] = useState<Array<{ s: Summary; hasArchive: boolean }>>([]);
+  const onOpenSettings = useCallback(() => {
+    setShowSettings((v) => {
+      if (!v) {
+        const history = loadHistory();
+        idbArchiveKeys()
+          .then((keys) => {
+            const set = new Set(keys);
+            setPast(history.slice(0, 5).map((s) => ({ s, hasArchive: set.has(s.at) })));
+          })
+          .catch(() => setPast(history.slice(0, 5).map((s) => ({ s, hasArchive: false }))));
+      }
+      return !v;
+    });
+  }, []);
+  const onDownloadPast = useCallback(async (at: number) => {
+    const archive = await idbGetArchive(at).catch(() => null);
+    if (!archive) return;
+    const url = URL.createObjectURL(new Blob([archive], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `boxingpro-session-${new Date(at).toISOString().slice(0, 19).replace(/[T:]/g, "-")}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }, []);
   const pbRef = useRef<number | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   useEffect(() => {
@@ -708,7 +757,7 @@ export default function SessionPage() {
 
         <div style={{ display: "flex", gap: 8 }}>
           <button
-            onClick={() => setShowSettings((v) => !v)}
+            onClick={onOpenSettings}
             data-testid="settings"
             aria-label="settings"
             style={{ background: showSettings ? "#16341fdd" : "#1a1c22dd", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "10px 14px", fontSize: 16, cursor: "pointer" }}
@@ -788,6 +837,34 @@ export default function SessionPage() {
           >
             🔄 {facing === "user" ? "Front (mirrored)" : "Rear"} — tap to switch
           </button>
+          {past.length > 0 && (
+            <>
+              <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "12px 0 6px" }}>PAST SESSIONS</div>
+              <div style={{ maxHeight: 150, overflowY: "auto" }}>
+                {past.map(({ s, hasArchive }) => (
+                  <div key={s.at} data-testid="past-session" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "#c6ccd6", padding: "4px 0" }}>
+                    <span>
+                      {new Date(s.at).toLocaleDateString()}{" "}
+                      {new Date(s.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {s.strikes_left + s.strikes_right} strikes
+                    </span>
+                    {hasArchive ? (
+                      <button
+                        onClick={() => onDownloadPast(s.at)}
+                        style={{ background: "none", border: "none", color: "#61dafb", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+                      >
+                        ⬇ data
+                      </button>
+                    ) : (
+                      <span style={{ color: "#565c66", fontSize: 11 }}>stats only</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
