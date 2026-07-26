@@ -16,6 +16,13 @@ export class SessionAnalyzer {
    */
   strike_count(): number;
   /**
+   * All completed strikes, chronological, as a JSON array. `t_ms` is
+   * relative to the session's first frame. Guard recovery is null until
+   * the profile locks; extension is omitted pending calibrated profiles
+   * (see `last_strike_cue`).
+   */
+  strikes_json(): string;
+  /**
    * Whole-session summary as JSON: counts per hand, speed stats, average
    * guard recovery. Deterministic Metrics Core numbers only; anything
    * unobservable is `null` (honesty rule, docs/03).
@@ -55,6 +62,7 @@ export interface InitOutput {
   readonly sessionanalyzer_new: () => number;
   readonly sessionanalyzer_push_frame: (a: number, b: number, c: number, d: number) => void;
   readonly sessionanalyzer_strike_count: (a: number) => number;
+  readonly sessionanalyzer_strikes_json: (a: number, b: number) => void;
   readonly sessionanalyzer_summary_json: (a: number, b: number) => void;
   readonly __wbindgen_export_0: (a: number, b: number) => number;
   readonly __wbindgen_add_to_stack_pointer: (a: number) => number;

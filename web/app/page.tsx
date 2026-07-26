@@ -59,6 +59,13 @@ type Summary = {
   at: number;
 };
 
+type StrikeLogItem = {
+  t_ms: number;
+  hand: string;
+  peak_speed: number;
+  guard_recovery_ms: number | null;
+};
+
 const HISTORY_KEY = "boxingpro.sessions.v1";
 
 /** Cue id (from the Metrics Core fault layer) → words. One cue at a time. */
@@ -140,7 +147,7 @@ export default function SessionPage() {
   });
 
   const endRef = useRef<(() => void) | null>(null);
-  const [summary, setSummary] = useState<{ current: Summary; history: Summary[] } | null>(null);
+  const [summary, setSummary] = useState<{ current: Summary; history: Summary[]; log: StrikeLogItem[] } | null>(null);
   const [cue, setCue] = useState<string | null>(null);
 
   const onReset = useCallback(() => resetRef.current?.(), []);
@@ -189,8 +196,9 @@ export default function SessionPage() {
         endRef.current = () => {
           const s = JSON.parse(analyzer.summary_json()) as Summary;
           s.at = Date.now();
+          const log = JSON.parse(analyzer.strikes_json()) as StrikeLogItem[];
           const history = s.duration_ms > 5000 ? saveToHistory(s) : [s, ...loadHistory()];
-          setSummary({ current: s, history: history.slice(1, 6) });
+          setSummary({ current: s, history: history.slice(1, 6), log });
           resetRef.current?.();
         };
 
@@ -505,6 +513,29 @@ export default function SessionPage() {
                 </>
               );
             })()}
+            {summary.log.length > 0 && (
+              <>
+                <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "16px 0 6px" }}>
+                  STRIKE LOG{summary.log.length > 40 ? ` (last 40 of ${summary.log.length})` : ""}
+                </div>
+                <div style={{ maxHeight: 180, overflowY: "auto" }}>
+                  {summary.log.slice(-40).map((k, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#c6ccd6", padding: "3px 0", fontVariantNumeric: "tabular-nums" }}>
+                      <span style={{ color: "#9aa0aa" }}>
+                        {Math.floor(k.t_ms / 60000)}:{String(Math.floor((k.t_ms % 60000) / 1000)).padStart(2, "0")}
+                      </span>
+                      <span style={{ fontWeight: 700, color: k.hand === "left" ? "#61dafb" : "#ffb86c" }}>
+                        {k.hand === "left" ? "L" : "R"}
+                      </span>
+                      <span>{k.peak_speed.toFixed(1)} m/s</span>
+                      <span style={{ color: k.guard_recovery_ms != null && k.guard_recovery_ms > 550 ? "#ff8a5c" : "#7ee08a" }}>
+                        {k.guard_recovery_ms != null ? `${Math.round(k.guard_recovery_ms)} ms` : "—"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
             {summary.history.length > 0 && (
               <>
                 <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "16px 0 6px" }}>PREVIOUS SESSIONS</div>

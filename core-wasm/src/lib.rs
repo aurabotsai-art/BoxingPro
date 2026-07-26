@@ -186,6 +186,37 @@ impl SessionAnalyzer {
         }
     }
 
+    /// All completed strikes, chronological, as a JSON array. `t_ms` is
+    /// relative to the session's first frame. Guard recovery is null until
+    /// the profile locks; extension is omitted pending calibrated profiles
+    /// (see `last_strike_cue`).
+    pub fn strikes_json(&self) -> String {
+        let t0 = self.seq.frames.first().map_or(0.0, |f| f.t_ms);
+        let mut all: Vec<(Hand, &boxingpro_core::events::StrikeCandidate)> = Vec::new();
+        for d in [&self.left, &self.right] {
+            for c in d.candidates() {
+                all.push((d.hand(), c));
+            }
+        }
+        all.sort_by_key(|(_, c)| c.peak_idx);
+        let items: Vec<String> = all
+            .iter()
+            .map(|(h, c)| {
+                let rec = self.profile.as_ref().and_then(|p| {
+                    strike_metrics(&self.seq, c, p, &MetricsConfig::default()).guard_recovery_ms
+                });
+                format!(
+                    "{{\"t_ms\":{:.0},\"hand\":\"{}\",\"peak_speed\":{:.2},\"guard_recovery_ms\":{}}}",
+                    self.seq.frames[c.peak_idx].t_ms - t0,
+                    if *h == Hand::Left { "left" } else { "right" },
+                    c.peak_speed_mps,
+                    rec.map_or("null".to_string(), |v| format!("{v:.0}")),
+                )
+            })
+            .collect();
+        format!("[{}]", items.join(","))
+    }
+
     /// Whole-session summary as JSON: counts per hand, speed stats, average
     /// guard recovery. Deterministic Metrics Core numbers only; anything
     /// unobservable is `null` (honesty rule, docs/03).
@@ -297,5 +328,30 @@ mod tests {
         let s = a.summary_json();
         assert!(s.contains("\"strikes_left\":1"), "{s}");
         assert!(s.contains("\"strikes_right\":0"), "{s}");
+    }
+
+    #[test]
+    fn strike_log_lists_the_jab_with_session_relative_time() {
+        let jab = SyntheticJab {
+            idle_ms: 1200.0,
+            ..SyntheticJab::default()
+        };
+        let a = analyzer_from(&jab_sequence(1.8, &jab));
+        let log = a.strikes_json();
+        assert!(
+            log.starts_with('[') && log.contains("\"hand\":\"left\""),
+            "{log}"
+        );
+        // Peak lands during the out phase: idle_ms..idle_ms+out_ms window.
+        let t: f64 = log
+            .split("\"t_ms\":")
+            .nth(1)
+            .and_then(|s| s.split(',').next())
+            .and_then(|s| s.parse().ok())
+            .unwrap();
+        assert!(
+            t >= jab.idle_ms && t <= jab.idle_ms + jab.out_ms + 50.0,
+            "peak t {t}"
+        );
     }
 }
