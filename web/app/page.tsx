@@ -71,6 +71,18 @@ const GUARD_VIEW: Record<string, [string, string]> = {
 };
 const GUARD_WARN_SUSTAIN_MS = 800;
 const STANCE_KEY = "boxingpro.stance.v1";
+const PB_KEY = "boxingpro.pb.v1";
+/** Speeds above this are pose glitches (elite hands top out ~13 m/s), not PBs. */
+const PB_SANITY_MPS = 15;
+
+function loadPb(): number | null {
+  try {
+    const v = Number(localStorage.getItem(PB_KEY));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 type StrikeLogItem = {
   t_ms: number;
@@ -200,6 +212,18 @@ export default function SessionPage() {
   const applyStanceRef = useRef<((s: string) => void) | null>(null);
   const [stance, setStance] = useState<"orthodox" | "southpaw">("orthodox");
   const [showSettings, setShowSettings] = useState(false);
+  const pbRef = useRef<number | null>(null);
+  const [pb, setPb] = useState<number | null>(null);
+  const [pbFlash, setPbFlash] = useState<number | null>(null);
+  const switchCameraRef = useRef<((mode: "user" | "environment") => void) | null>(null);
+  const [facing, setFacing] = useState<"user" | "environment">("user");
+  const onFlipCamera = useCallback(() => {
+    setFacing((f) => {
+      const next = f === "user" ? "environment" : "user";
+      switchCameraRef.current?.(next);
+      return next;
+    });
+  }, []);
   const onStance = useCallback((s: "orthodox" | "southpaw") => {
     stanceRef.current = s;
     setStance(s);
@@ -314,14 +338,33 @@ export default function SessionPage() {
             .wakeLock?.request("screen");
         } catch { /* screen-dim settings cover unsupported browsers */ }
 
+        pbRef.current = loadPb();
+        setPb(pbRef.current);
+
         setHud((h) => ({ ...h, status: "camera…" }));
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } },
-          audio: false,
-        });
+        const openCamera = (mode: "user" | "environment") =>
+          navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: mode,
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 60 },
+            },
+            audio: false,
+          });
+        stream = await openCamera("user");
         const video = videoRef.current!;
         video.srcObject = stream;
         await video.play();
+        switchCameraRef.current = async (mode) => {
+          try {
+            const next = await openCamera(mode);
+            stream?.getTracks().forEach((t) => t.stop());
+            stream = next;
+            video.srcObject = next;
+            await video.play();
+          } catch { /* device without that camera: keep the current one */ }
+        };
 
         const canvas = canvasRef.current!;
         const ctx = canvas.getContext("2d")!;
@@ -398,6 +441,23 @@ export default function SessionPage() {
             const count = analyzer.strike_count();
             if (count > lastStrikes) {
               if (soundOnRef.current && audioRef.current) beep(audioRef.current);
+              // Personal best: sanity-capped so pose glitches can't set it.
+              const lastRaw = analyzer.last_strike_json();
+              if (lastRaw !== "null") {
+                const sp = (JSON.parse(lastRaw) as LastStrike).peak_speed;
+                if (sp < PB_SANITY_MPS && (pbRef.current == null || sp > pbRef.current)) {
+                  const isFirst = pbRef.current == null;
+                  pbRef.current = sp;
+                  setPb(sp);
+                  try {
+                    localStorage.setItem(PB_KEY, String(sp));
+                  } catch { /* private mode */ }
+                  if (!isFirst) {
+                    setPbFlash(sp);
+                    setTimeout(() => setPbFlash(null), 2500);
+                  }
+                }
+              }
               // No coaching during rest: punches thrown then are cooldown.
               const anchor = roundAnchorRef.current;
               const inRest =
@@ -470,7 +530,8 @@ export default function SessionPage() {
     };
   }, []);
 
-  const mirror = { transform: "scaleX(-1)" } as const;
+  // Mirror only the front camera (selfie convention); rear view stays true.
+  const mirror = facing === "user" ? ({ transform: "scaleX(-1)" } as const) : {};
   const pill = (bg: string): React.CSSProperties => ({
     padding: "6px 14px",
     borderRadius: 999,
@@ -538,6 +599,11 @@ export default function SessionPage() {
           {hud.elapsed > 15 && hud.strikes > 0 && (
             <div data-testid="rate" style={{ fontSize: 13, color: "#9aa0aa", fontWeight: 600 }}>
               {Math.round((hud.strikes / hud.elapsed) * 60)} / min
+            </div>
+          )}
+          {pb != null && (
+            <div data-testid="pb" style={{ fontSize: 12, color: "#c9a54c", fontWeight: 700 }}>
+              best {pb.toFixed(1)} m/s
             </div>
           )}
         </div>
@@ -632,6 +698,25 @@ export default function SessionPage() {
           <div style={{ fontSize: 11, color: "#9aa0aa", marginTop: 8 }}>
             Sets which hand is your lead — guard labels and lead-hand metrics depend on it.
           </div>
+          <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "12px 0 8px" }}>CAMERA</div>
+          <button
+            onClick={onFlipCamera}
+            data-testid="flip-camera"
+            style={{ width: "100%", background: "#1a1c22", color: "#eee", border: "1px solid #2c313c", borderRadius: 10, padding: "9px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+          >
+            🔄 {facing === "user" ? "Front (mirrored)" : "Rear"} — tap to switch
+          </button>
+        </div>
+      )}
+
+      {pbFlash != null && (
+        <div
+          data-testid="pb-flash"
+          style={{ position: "absolute", top: "32%", left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}
+        >
+          <span style={{ background: "#3d3007ee", border: "1px solid #c9a54c", color: "#ffe9a8", borderRadius: 14, padding: "12px 22px", fontSize: 22, fontWeight: 900, letterSpacing: 0.5, boxShadow: "0 4px 24px #0008" }}>
+            ⚡ NEW BEST — {pbFlash.toFixed(1)} m/s
+          </span>
         </div>
       )}
 
