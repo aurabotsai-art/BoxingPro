@@ -84,7 +84,11 @@ pub fn strike_metrics(
     for i in strike.onset_idx..=strike.end_idx.min(seq.frames.len() - 1) {
         let f = &seq.frames[i];
         if let (Some(w), Some(s)) = (f.get(wrist), f.get(shoulder)) {
-            let d = ((w.x - s.x).powi(2) + (w.y - s.y).powi(2)).sqrt();
+            let dz = match (w.z, s.z) {
+                (Some(wz), Some(sz)) => wz - sz,
+                _ => 0.0,
+            };
+            let d = ((w.x - s.x).powi(2) + (w.y - s.y).powi(2) + dz.powi(2)).sqrt();
             if max_ext.is_none_or(|m| d > m) {
                 max_ext = Some(d);
                 apex_idx = i;

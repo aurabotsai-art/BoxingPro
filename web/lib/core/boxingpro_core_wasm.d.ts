@@ -4,7 +4,8 @@ export class SessionAnalyzer {
   free(): void;
   [Symbol.dispose](): void;
   /**
-   * Push one frame. `joints` must be 21×3 (x, y, confidence).
+   * Push one frame. `joints` must be 21×4 (x, y, z, confidence); z=NaN
+   * when unknown. Coordinates in meters (MediaPipe world landmarks).
    */
   push_frame(t_ms: number, joints: Float64Array): void;
   frame_count(): number;

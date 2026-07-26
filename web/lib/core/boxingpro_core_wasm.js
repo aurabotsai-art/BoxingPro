@@ -75,7 +75,8 @@ export class SessionAnalyzer {
         wasm.__wbg_sessionanalyzer_free(ptr, 0);
     }
     /**
-     * Push one frame. `joints` must be 21×3 (x, y, confidence).
+     * Push one frame. `joints` must be 21×4 (x, y, z, confidence); z=NaN
+     * when unknown. Coordinates in meters (MediaPipe world landmarks).
      * @param {number} t_ms
      * @param {Float64Array} joints
      */

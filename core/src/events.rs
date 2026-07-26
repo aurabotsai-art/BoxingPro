@@ -62,7 +62,9 @@ impl Default for DetectorConfig {
 }
 
 /// Central-difference wrist speed series (m/s) for one hand.
-/// `None` where the wrist (or a neighbor frame's wrist) is unobserved.
+/// Uses z when both samples carry it (camera-facing punches move mostly in
+/// depth; 2D-only speed misses them). `None` where the wrist (or a neighbor
+/// frame's wrist) is unobserved.
 pub fn wrist_speed_series(seq: &Sequence, hand: Hand) -> Vec<Option<f64>> {
     let n = seq.frames.len();
     let mut out = vec![None; n];
@@ -75,7 +77,11 @@ pub fn wrist_speed_series(seq: &Sequence, hand: Hand) -> Vec<Option<f64>> {
         if let (Some(a), Some(b)) = (prev.get(w), next.get(w)) {
             let dt_s = (next.t_ms - prev.t_ms) / 1000.0;
             if dt_s > 0.0 {
-                let d = ((b.x - a.x).powi(2) + (b.y - a.y).powi(2)).sqrt();
+                let dz = match (a.z, b.z) {
+                    (Some(az), Some(bz)) => bz - az,
+                    _ => 0.0,
+                };
+                let d = ((b.x - a.x).powi(2) + (b.y - a.y).powi(2) + dz.powi(2)).sqrt();
                 *slot = Some(d / dt_s);
             }
         }

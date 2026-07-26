@@ -1,17 +1,15 @@
 "use client";
 
 /**
- * Live session page v0 (docs/04 §4 Tier-1 path, browser edition):
- * camera → MediaPipe PoseLandmarker → canonical 21-joint mapping →
- * Rust Metrics Core (WASM) → live HUD (measured fps, strikes, last-strike
- * metrics) + skeleton overlay.
+ * Live session v1: camera → MediaPipe pose → Rust Metrics Core (WASM).
  *
- * Diagnostics are first-class: this page IS spike S0.2 (capture reality
- * check) when opened on a real phone — the HUD numbers are what the owner
- * reads back (docs/13 M1).
+ * Analysis consumes WORLD landmarks (true metric 3D, meters, hip-origin) so
+ * detector thresholds in m/s are physically meaningful and toward-camera
+ * punches register via depth motion. The overlay uses normalized landmarks.
+ * View is mirrored (selfie convention).
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // MediaPipe landmark index → canonical joint index (mirrors tools/ingest).
 const MP_TO_CANON: Array<[number, number]> = [
@@ -25,28 +23,36 @@ const BONES: Array<[number, number]> = [
   [9, 11], [11, 13], [10, 12], [12, 14], [13, 15], [15, 17], [14, 16], [16, 18],
 ];
 
+type LastStrike = {
+  hand: string;
+  peak_speed: number;
+  extension_frac: number | null;
+  guard_recovery_ms: number | null;
+};
+
 type Hud = {
   status: string;
   fps: number;
-  frames: number;
   poseDetected: boolean;
   strikes: number;
-  lastStrike: string | null;
+  last: LastStrike | null;
   profileReady: boolean;
 };
 
 export default function SessionPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const resetRef = useRef<(() => void) | null>(null);
   const [hud, setHud] = useState<Hud>({
-    status: "initializing…",
+    status: "starting…",
     fps: 0,
-    frames: 0,
     poseDetected: false,
     strikes: 0,
-    lastStrike: null,
+    last: null,
     profileReady: false,
   });
+
+  const onReset = useCallback(() => resetRef.current?.(), []);
 
   useEffect(() => {
     let stop = false;
@@ -54,7 +60,7 @@ export default function SessionPage() {
 
     (async () => {
       try {
-        setHud((h) => ({ ...h, status: "loading pose model…" }));
+        setHud((h) => ({ ...h, status: "loading models…" }));
         const vision = await import("@mediapipe/tasks-vision");
         const fileset = await vision.FilesetResolver.forVisionTasks("/mediapipe/wasm");
         const landmarker = await vision.PoseLandmarker.createFromOptions(fileset, {
@@ -62,19 +68,20 @@ export default function SessionPage() {
           runningMode: "VIDEO",
           numPoses: 1,
         });
-
-        setHud((h) => ({ ...h, status: "loading metrics core…" }));
         const core = await import("@/lib/core/boxingpro_core_wasm.js");
         await core.default({ module_or_path: "/core/boxingpro_core_wasm_bg.wasm" });
-        const analyzer = new core.SessionAnalyzer();
+        let analyzer = new core.SessionAnalyzer();
+        resetRef.current = () => {
+          analyzer = new core.SessionAnalyzer();
+          setHud((h) => ({ ...h, strikes: 0, last: null, profileReady: false }));
+        };
 
-        // Keep the screen awake during sessions (ADR-003 cost #4).
         try {
           await (navigator as Navigator & { wakeLock?: { request: (t: string) => Promise<unknown> } })
             .wakeLock?.request("screen");
-        } catch { /* unsupported browsers train with screen-dim settings */ }
+        } catch { /* screen-dim settings cover unsupported browsers */ }
 
-        setHud((h) => ({ ...h, status: "requesting camera…" }));
+        setHud((h) => ({ ...h, status: "camera…" }));
         stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } },
           audio: false,
@@ -88,48 +95,51 @@ export default function SessionPage() {
         const t0 = performance.now();
         let frames = 0;
         let fpsWindow: number[] = [];
-        const joints = new Float64Array(JOINTS * 3);
+        const joints = new Float64Array(JOINTS * 4);
 
         setHud((h) => ({ ...h, status: "live" }));
         const loop = () => {
           if (stop) return;
           const now = performance.now();
           const tMs = now - t0;
-          if (video.readyState >= 2) {
+          if (video.readyState >= 2 && video.videoWidth > 0) {
             const res = landmarker.detectForVideo(video, Math.round(tMs));
             frames++;
             fpsWindow.push(now);
             fpsWindow = fpsWindow.filter((t) => now - t < 2000);
 
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
+            if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             const lm = res.landmarks?.[0];
+            const wl = res.worldLandmarks?.[0];
             joints.fill(0);
-            if (lm) {
-              const aspect = video.videoWidth / video.videoHeight;
+
+            if (lm && wl) {
+              // ── Analysis: metric world landmarks (y flipped to y-up) ──
               for (const [mp, canon] of MP_TO_CANON) {
-                const p = lm[mp];
-                const vis = (p as { visibility?: number }).visibility ?? 1;
+                const vis = (lm[mp] as { visibility?: number }).visibility ?? 1;
                 if (vis >= 0.5) {
-                  // Canonical space: aspect-corrected, y-up (docs contracts).
-                  joints[canon * 3] = p.x * aspect;
-                  joints[canon * 3 + 1] = 1 - p.y;
-                  joints[canon * 3 + 2] = vis;
+                  joints[canon * 4] = wl[mp].x;
+                  joints[canon * 4 + 1] = -wl[mp].y;
+                  joints[canon * 4 + 2] = wl[mp].z ?? NaN;
+                  joints[canon * 4 + 3] = vis;
                 }
               }
-              // Overlay in pixel space.
-              ctx.strokeStyle = "#4da3ff";
-              ctx.lineWidth = 4;
-              ctx.fillStyle = "#fff";
-              const px = (c: number) => ({
-                x: (joints[c * 3] / aspect) * canvas.width,
-                y: (1 - joints[c * 3 + 1]) * canvas.height,
-                ok: joints[c * 3 + 2] > 0,
-              });
+              // ── Overlay: normalized landmarks in pixel space ──
+              ctx.lineWidth = Math.max(3, canvas.width / 320);
+              ctx.strokeStyle = "rgba(97, 218, 251, 0.9)";
+              ctx.shadowColor = "rgba(97, 218, 251, 0.6)";
+              ctx.shadowBlur = 8;
+              const P = (mp: number) => {
+                const p = lm[mp];
+                const vis = (p as { visibility?: number }).visibility ?? 1;
+                return { x: p.x * canvas.width, y: p.y * canvas.height, ok: vis >= 0.5 };
+              };
+              const mpOf = (canon: number) => MP_TO_CANON.find(([, c]) => c === canon)![0];
               for (const [a, b] of BONES) {
-                const pa = px(a), pb = px(b);
+                const pa = P(mpOf(a)), pb = P(mpOf(b));
                 if (pa.ok && pb.ok) {
                   ctx.beginPath();
                   ctx.moveTo(pa.x, pa.y);
@@ -137,12 +147,14 @@ export default function SessionPage() {
                   ctx.stroke();
                 }
               }
-              for (const [, canon] of MP_TO_CANON) {
-                const p = px(canon);
+              ctx.shadowBlur = 0;
+              for (const [mp, canon] of MP_TO_CANON) {
+                const p = P(mp);
                 if (p.ok) {
+                  const wristy = canon === 7 || canon === 8;
                   ctx.beginPath();
-                  ctx.arc(p.x, p.y, canon === 7 || canon === 8 ? 8 : 5, 0, 7);
-                  ctx.fillStyle = canon === 7 || canon === 8 ? "#ff5555" : "#fff";
+                  ctx.arc(p.x, p.y, wristy ? 9 : 5, 0, 7);
+                  ctx.fillStyle = wristy ? "#ff4d4d" : "#ffffff";
                   ctx.fill();
                 }
               }
@@ -150,14 +162,13 @@ export default function SessionPage() {
             analyzer.push_frame(tMs, joints);
 
             if (frames % 15 === 0) {
-              const last = analyzer.last_strike_json();
+              const raw = analyzer.last_strike_json();
               setHud({
                 status: "live",
-                fps: Math.round((fpsWindow.length / 2) * 10) / 10,
-                frames,
+                fps: Math.round(fpsWindow.length / 2),
                 poseDetected: !!lm,
                 strikes: analyzer.strike_count(),
-                lastStrike: last === "null" ? null : last,
+                last: raw === "null" ? null : (JSON.parse(raw) as LastStrike),
                 profileReady: analyzer.has_profile(),
               });
             }
@@ -176,21 +187,87 @@ export default function SessionPage() {
     };
   }, []);
 
+  const mirror = { transform: "scaleX(-1)" } as const;
+  const pill = (bg: string): React.CSSProperties => ({
+    padding: "6px 14px",
+    borderRadius: 999,
+    background: bg,
+    fontSize: 13,
+    fontWeight: 600,
+    letterSpacing: 0.3,
+    backdropFilter: "blur(8px)",
+  });
+
   return (
-    <main style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <div style={{ position: "relative", flex: 1, background: "#000" }}>
-        <video ref={videoRef} muted playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }} />
-        <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }} />
+    <main style={{ position: "fixed", inset: 0, background: "#0a0a0c", overflow: "hidden", fontFamily: "system-ui, sans-serif" }}>
+      <video
+        ref={videoRef}
+        muted
+        playsInline
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", ...mirror }}
+      />
+      <canvas
+        ref={canvasRef}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", ...mirror }}
+      />
+
+      {/* top bar */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "linear-gradient(#0a0a0ccc, transparent)" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 0.5 }}>
+            <span style={{ color: "#ff4d4d" }}>Boxing</span>Pro
+          </span>
+          <span data-testid="status" style={pill(hud.status === "live" ? "#16341fdd" : "#33241add")}>
+            {hud.status === "live" ? "● LIVE" : hud.status}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <span data-testid="pose" style={pill(hud.poseDetected ? "#16341fdd" : "#3a1a1add")}>
+            {hud.poseDetected ? "tracking you" : "step into frame"}
+          </span>
+          <span data-testid="fps" style={pill("#1a1c22dd")}>{hud.fps} fps</span>
+        </div>
       </div>
-      <div id="hud" data-testid="hud" style={{ padding: "10px 14px", background: "#1a1a1a", fontSize: 14, display: "flex", gap: 18, flexWrap: "wrap" }}>
-        <span data-testid="status">{hud.status}</span>
-        <span data-testid="fps">fps: {hud.fps}</span>
-        <span data-testid="frames">frames: {hud.frames}</span>
-        <span data-testid="pose">pose: {hud.poseDetected ? "✓" : "–"}</span>
-        <span data-testid="strikes">strikes: {hud.strikes}</span>
-        <span data-testid="profile">profile: {hud.profileReady ? "auto" : "building…"}</span>
-        {hud.lastStrike && <span data-testid="last">last: {hud.lastStrike}</span>}
+
+      {/* bottom stats */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "18px 16px 22px", background: "linear-gradient(transparent, #0a0a0cee 40%)", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, letterSpacing: 2, color: "#9aa0aa", fontWeight: 700 }}>STRIKES</div>
+          <div data-testid="strikes" style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, color: "#fff", fontVariantNumeric: "tabular-nums" }}>
+            {hud.strikes}
+          </div>
+        </div>
+
+        {hud.last && (
+          <div data-testid="last" style={{ textAlign: "right", background: "#14161ccc", border: "1px solid #262a33", borderRadius: 14, padding: "10px 16px", backdropFilter: "blur(8px)" }}>
+            <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700 }}>
+              LAST — {hud.last.hand.toUpperCase()} HAND
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: "#61dafb" }}>
+              {hud.last.peak_speed.toFixed(1)} <span style={{ fontSize: 14, color: "#9aa0aa" }}>m/s</span>
+            </div>
+            {hud.last.guard_recovery_ms != null && (
+              <div style={{ fontSize: 13, color: hud.last.guard_recovery_ms > 550 ? "#ff8a5c" : "#7ee08a" }}>
+                guard back in {Math.round(hud.last.guard_recovery_ms)} ms
+              </div>
+            )}
+          </div>
+        )}
+
+        <button
+          onClick={onReset}
+          data-testid="reset"
+          style={{ background: "#1a1c22dd", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "10px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+        >
+          Reset
+        </button>
       </div>
+
+      {!hud.profileReady && hud.status === "live" && (
+        <div data-testid="profile" style={{ position: "absolute", bottom: 110, left: 0, right: 0, textAlign: "center", color: "#9aa0aa", fontSize: 13 }}>
+          calibrating to your body — keep moving…
+        </div>
+      )}
     </main>
   );
 }

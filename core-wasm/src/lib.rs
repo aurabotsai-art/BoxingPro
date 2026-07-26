@@ -5,8 +5,10 @@
 //! metrics) plus a full end-of-session analysis. Same crate, same numbers as
 //! the CLI and future server workers.
 //!
-//! Frame layout: `[x0, y0, c0, x1, y1, c1, …]` for the 21 canonical joints
-//! (core/src/types.rs order). Unobserved joint = confidence 0 (x/y ignored).
+//! Frame layout: `[x0, y0, z0, c0, x1, y1, z1, c1, …]` for the 21 canonical
+//! joints (core/src/types.rs order). Unobserved joint = confidence 0;
+//! unknown depth = NaN z. Feed MediaPipe WORLD landmarks (metric, meters) —
+//! the detector thresholds are calibrated in m/s.
 
 use boxingpro_core::events::{detect_strikes, DetectorConfig, Hand};
 use boxingpro_core::metrics::{strike_metrics, MetricsConfig};
@@ -33,7 +35,11 @@ fn auto_profile_from(seq: &Sequence) -> Option<BodyProfile> {
             (Joint::RightShoulder, Joint::RightWrist, &mut rw),
         ] {
             if let (Some(s), Some(w)) = (f.get(sh), f.get(wr)) {
-                reach.push(((w.x - s.x).powi(2) + (w.y - s.y).powi(2)).sqrt());
+                let dz = match (w.z, s.z) {
+                    (Some(wz), Some(sz)) => wz - sz,
+                    _ => 0.0,
+                };
+                reach.push(((w.x - s.x).powi(2) + (w.y - s.y).powi(2) + dz.powi(2)).sqrt());
                 acc.0.push(w.x);
                 acc.1.push(w.y);
             }
@@ -68,16 +74,22 @@ impl SessionAnalyzer {
         }
     }
 
-    /// Push one frame. `joints` must be 21×3 (x, y, confidence).
+    /// Push one frame. `joints` must be 21×4 (x, y, z, confidence); z=NaN
+    /// when unknown. Coordinates in meters (MediaPipe world landmarks).
     pub fn push_frame(&mut self, t_ms: f64, joints: &[f64]) {
         let mut pf = PoseFrame::empty(t_ms);
-        for i in 0..JOINT_COUNT.min(joints.len() / 3) {
-            let (x, y, c) = (joints[i * 3], joints[i * 3 + 1], joints[i * 3 + 2]);
+        for i in 0..JOINT_COUNT.min(joints.len() / 4) {
+            let (x, y, z, c) = (
+                joints[i * 4],
+                joints[i * 4 + 1],
+                joints[i * 4 + 2],
+                joints[i * 4 + 3],
+            );
             if c > 0.0 {
                 pf.joints[i] = Some(Keypoint {
                     x,
                     y,
-                    z: None,
+                    z: if z.is_finite() { Some(z) } else { None },
                     confidence: c,
                 });
             }
