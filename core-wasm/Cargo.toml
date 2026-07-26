@@ -11,3 +11,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 boxingpro-core = { path = "../core" }
 wasm-bindgen = "=0.2.104"
+
+[dev-dependencies]
+# Test-only JSON parsing for validating serialized outputs; never in the
+# wasm artifact (ADR-004 zero-dep discipline applies to shipped code).
+serde_json = "1"

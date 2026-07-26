@@ -48,6 +48,58 @@ function passArrayF64ToWasm0(arg, malloc) {
     return ptr;
 }
 
+const cachedTextEncoder = new TextEncoder();
+
+if (!('encodeInto' in cachedTextEncoder)) {
+    cachedTextEncoder.encodeInto = function (arg, view) {
+        const buf = cachedTextEncoder.encode(arg);
+        view.set(buf);
+        return {
+            read: arg.length,
+            written: buf.length
+        };
+    }
+}
+
+function passStringToWasm0(arg, malloc, realloc) {
+
+    if (realloc === undefined) {
+        const buf = cachedTextEncoder.encode(arg);
+        const ptr = malloc(buf.length, 1) >>> 0;
+        getUint8ArrayMemory0().subarray(ptr, ptr + buf.length).set(buf);
+        WASM_VECTOR_LEN = buf.length;
+        return ptr;
+    }
+
+    let len = arg.length;
+    let ptr = malloc(len, 1) >>> 0;
+
+    const mem = getUint8ArrayMemory0();
+
+    let offset = 0;
+
+    for (; offset < len; offset++) {
+        const code = arg.charCodeAt(offset);
+        if (code > 0x7F) break;
+        mem[ptr + offset] = code;
+    }
+
+    if (offset !== len) {
+        if (offset !== 0) {
+            arg = arg.slice(offset);
+        }
+        ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
+        const view = getUint8ArrayMemory0().subarray(ptr + offset, ptr + len);
+        const ret = cachedTextEncoder.encodeInto(arg, view);
+
+        offset += ret.written;
+        ptr = realloc(ptr, len, offset, 1) >>> 0;
+    }
+
+    WASM_VECTOR_LEN = offset;
+    return ptr;
+}
+
 let cachedDataViewMemory0 = null;
 
 function getDataViewMemory0() {
@@ -100,6 +152,45 @@ export class SessionAnalyzer {
         return ret !== 0;
     }
     /**
+     * Serialize the session as a schema-valid SkeletonArchive v1 document
+     * (contracts/skeleton_archive.v1.schema.json), `t_ms` rebased to the
+     * first frame. Coordinate space is camera_metric (MediaPipe world
+     * landmarks are estimated meters); scale anchor stays "uncalibrated"
+     * until real calibration exists — downstream consumers gate on that.
+     * @param {string} session_id
+     * @param {string} profile_id
+     * @param {string} pose_model_id
+     * @param {string} device_model
+     * @param {number} fps_nominal
+     * @param {number} width
+     * @param {number} height
+     * @returns {string}
+     */
+    archive_json(session_id, profile_id, pose_model_id, device_model, fps_nominal, width, height) {
+        let deferred5_0;
+        let deferred5_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(session_id, wasm.__wbindgen_export_0, wasm.__wbindgen_export_1);
+            const len0 = WASM_VECTOR_LEN;
+            const ptr1 = passStringToWasm0(profile_id, wasm.__wbindgen_export_0, wasm.__wbindgen_export_1);
+            const len1 = WASM_VECTOR_LEN;
+            const ptr2 = passStringToWasm0(pose_model_id, wasm.__wbindgen_export_0, wasm.__wbindgen_export_1);
+            const len2 = WASM_VECTOR_LEN;
+            const ptr3 = passStringToWasm0(device_model, wasm.__wbindgen_export_0, wasm.__wbindgen_export_1);
+            const len3 = WASM_VECTOR_LEN;
+            wasm.sessionanalyzer_archive_json(retptr, this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, fps_nominal, width, height);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred5_0 = r0;
+            deferred5_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_2(deferred5_0, deferred5_1, 1);
+        }
+    }
+    /**
      * Live strike count across both hands. O(1): the incremental detectors
      * (batch-equivalent, see core pipeline tests) maintain it per frame.
      * @returns {number}
@@ -128,7 +219,7 @@ export class SessionAnalyzer {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_1(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -150,7 +241,7 @@ export class SessionAnalyzer {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_1(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -179,7 +270,7 @@ export class SessionAnalyzer {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_1(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -201,7 +292,7 @@ export class SessionAnalyzer {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_1(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
         }
     }
     constructor() {

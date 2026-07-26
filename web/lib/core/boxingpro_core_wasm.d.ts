@@ -11,6 +11,14 @@ export class SessionAnalyzer {
   frame_count(): number;
   has_profile(): boolean;
   /**
+   * Serialize the session as a schema-valid SkeletonArchive v1 document
+   * (contracts/skeleton_archive.v1.schema.json), `t_ms` rebased to the
+   * first frame. Coordinate space is camera_metric (MediaPipe world
+   * landmarks are estimated meters); scale anchor stays "uncalibrated"
+   * until real calibration exists — downstream consumers gate on that.
+   */
+  archive_json(session_id: string, profile_id: string, pose_model_id: string, device_model: string, fps_nominal: number, width: number, height: number): string;
+  /**
    * Live strike count across both hands. O(1): the incremental detectors
    * (batch-equivalent, see core pipeline tests) maintain it per frame.
    */
@@ -55,6 +63,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly __wbg_sessionanalyzer_free: (a: number, b: number) => void;
+  readonly sessionanalyzer_archive_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
   readonly sessionanalyzer_frame_count: (a: number) => number;
   readonly sessionanalyzer_has_profile: (a: number) => number;
   readonly sessionanalyzer_last_strike_cue: (a: number, b: number) => void;
@@ -66,7 +75,8 @@ export interface InitOutput {
   readonly sessionanalyzer_summary_json: (a: number, b: number) => void;
   readonly __wbindgen_export_0: (a: number, b: number) => number;
   readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
-  readonly __wbindgen_export_1: (a: number, b: number, c: number) => void;
+  readonly __wbindgen_export_1: (a: number, b: number, c: number, d: number) => number;
+  readonly __wbindgen_export_2: (a: number, b: number, c: number) => void;
 }
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;

@@ -217,6 +217,64 @@ impl SessionAnalyzer {
         format!("[{}]", items.join(","))
     }
 
+    /// Serialize the session as a schema-valid SkeletonArchive v1 document
+    /// (contracts/skeleton_archive.v1.schema.json), `t_ms` rebased to the
+    /// first frame. Coordinate space is camera_metric (MediaPipe world
+    /// landmarks are estimated meters); scale anchor stays "uncalibrated"
+    /// until real calibration exists — downstream consumers gate on that.
+    #[allow(clippy::too_many_arguments)]
+    pub fn archive_json(
+        &self,
+        session_id: &str,
+        profile_id: &str,
+        pose_model_id: &str,
+        device_model: &str,
+        fps_nominal: f64,
+        width: u32,
+        height: u32,
+    ) -> String {
+        fn sanitize(s: &str) -> String {
+            s.chars()
+                .filter(|c| !c.is_control())
+                .map(|c| if c == '"' || c == '\\' { '\'' } else { c })
+                .collect()
+        }
+        let t0 = self.seq.frames.first().map_or(0.0, |f| f.t_ms);
+        let mut frames = String::new();
+        for (i, f) in self.seq.frames.iter().enumerate() {
+            if i > 0 {
+                frames.push(',');
+            }
+            frames.push_str(&format!("{{\"t_ms\":{:.1},\"joints\":[", f.t_ms - t0));
+            for (j, kp) in f.joints.iter().enumerate() {
+                if j > 0 {
+                    frames.push(',');
+                }
+                match kp {
+                    Some(k) => {
+                        let z = k.z.map_or("null".to_string(), |z| format!("{z:.4}"));
+                        frames.push_str(&format!(
+                            "{{\"x\":{:.4},\"y\":{:.4},\"z\":{},\"c\":{:.2}}}",
+                            k.x,
+                            k.y,
+                            z,
+                            k.confidence.clamp(0.0, 1.0),
+                        ));
+                    }
+                    None => frames.push_str("null"),
+                }
+            }
+            frames.push_str("]}");
+        }
+        format!(
+            "{{\"version\":1,\"session_id\":\"{}\",\"capture\":{{\"fps_nominal\":{fps_nominal},\"width\":{width},\"height\":{height},\"pose_model_id\":\"{}\",\"device_model\":\"{}\"}},\"calibration_ref\":{{\"body_profile_id\":\"{}\",\"scale_anchor\":\"uncalibrated\"}},\"coordinate_space\":\"camera_metric\",\"frames\":[{frames}]}}",
+            sanitize(session_id),
+            sanitize(pose_model_id),
+            sanitize(device_model),
+            sanitize(profile_id),
+        )
+    }
+
     /// Whole-session summary as JSON: counts per hand, speed stats, average
     /// guard recovery. Deterministic Metrics Core numbers only; anything
     /// unobservable is `null` (honesty rule, docs/03).
@@ -328,6 +386,34 @@ mod tests {
         let s = a.summary_json();
         assert!(s.contains("\"strikes_left\":1"), "{s}");
         assert!(s.contains("\"strikes_right\":0"), "{s}");
+    }
+
+    #[test]
+    fn archive_json_is_valid_and_structurally_sound() {
+        let seq = jab_sequence(1.8, &SyntheticJab::default());
+        let a = analyzer_from(&seq);
+        let s = a.archive_json(
+            "11111111-1111-4111-8111-111111111111",
+            "22222222-2222-4222-8222-222222222222",
+            "mediapipe-pose-landmarker-full@tasks-vision",
+            "test \"device\" \\ ua",
+            60.0,
+            1280,
+            720,
+        );
+        let v: serde_json::Value = serde_json::from_str(&s).expect("valid JSON");
+        assert_eq!(v["version"], 1);
+        assert_eq!(v["coordinate_space"], "camera_metric");
+        assert_eq!(v["calibration_ref"]["scale_anchor"], "uncalibrated");
+        let frames = v["frames"].as_array().unwrap();
+        assert_eq!(frames.len(), seq.frames.len());
+        assert_eq!(frames[0]["joints"].as_array().unwrap().len(), 21);
+        assert_eq!(frames[0]["t_ms"], 0.0);
+        // Sanitizer must keep injected quotes/backslashes out of the JSON.
+        assert!(v["capture"]["device_model"]
+            .as_str()
+            .unwrap()
+            .contains("'device'"));
     }
 
     #[test]

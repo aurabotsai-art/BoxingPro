@@ -147,7 +147,13 @@ export default function SessionPage() {
   });
 
   const endRef = useRef<(() => void) | null>(null);
-  const [summary, setSummary] = useState<{ current: Summary; history: Summary[]; log: StrikeLogItem[] } | null>(null);
+  const [summary, setSummary] = useState<{
+    current: Summary;
+    history: Summary[];
+    log: StrikeLogItem[];
+    archiveUrl: string;
+    archiveBytes: number;
+  } | null>(null);
   const [cue, setCue] = useState<string | null>(null);
 
   const onReset = useCallback(() => resetRef.current?.(), []);
@@ -204,8 +210,21 @@ export default function SessionPage() {
           const s = JSON.parse(analyzer.summary_json()) as Summary;
           s.at = Date.now();
           const log = JSON.parse(analyzer.strikes_json()) as StrikeLogItem[];
+          // Keypoint archive (SkeletonArchive v1) — the session's raw data,
+          // downloadable for film study. Keypoints only, never video.
+          const v = videoRef.current;
+          const archive = analyzer.archive_json(
+            crypto.randomUUID(),
+            crypto.randomUUID(),
+            "mediapipe-pose-landmarker-full@tasks-vision",
+            navigator.userAgent,
+            Math.round(fpsWindow.length / 2),
+            v?.videoWidth ?? 0,
+            v?.videoHeight ?? 0,
+          );
+          const archiveUrl = URL.createObjectURL(new Blob([archive], { type: "application/json" }));
           const history = s.duration_ms > 5000 ? saveToHistory(s) : [s, ...loadHistory()];
-          setSummary({ current: s, history: history.slice(1, 6), log });
+          setSummary({ current: s, history: history.slice(1, 6), log, archiveUrl, archiveBytes: archive.length });
           resetRef.current?.();
         };
 
@@ -556,8 +575,19 @@ export default function SessionPage() {
                 ))}
               </>
             )}
+            <a
+              href={summary.archiveUrl}
+              download={`boxingpro-session-${new Date(summary.current.at).toISOString().slice(0, 19).replace(/[T:]/g, "-")}.json`}
+              data-testid="export"
+              style={{ display: "block", marginTop: 14, textAlign: "center", color: "#61dafb", fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+            >
+              ⬇ Download keypoint data ({(summary.archiveBytes / 1048576).toFixed(1)} MB) — no video, ever
+            </a>
             <button
-              onClick={() => setSummary(null)}
+              onClick={() => {
+                URL.revokeObjectURL(summary.archiveUrl);
+                setSummary(null);
+              }}
               data-testid="close-summary"
               style={{ marginTop: 18, width: "100%", background: "#1a1c22", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
             >
