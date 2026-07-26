@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "bash scripts/prepare-assets.sh && next build",
     "start": "next start",
-    "prepare-assets": "bash scripts/prepare-assets.sh"
+    "prepare-assets": "bash scripts/prepare-assets.sh",
+    "vercel-build": "bash scripts/prepare-assets.sh && next build"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.14",
