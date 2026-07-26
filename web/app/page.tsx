@@ -787,6 +787,13 @@ export default function SessionPage() {
                   {row("Fastest", s.max_peak_speed != null ? `${s.max_peak_speed.toFixed(1)} m/s` : "—")}
                   {row("Avg guard return", s.avg_guard_recovery_ms != null ? `${Math.round(s.avg_guard_recovery_ms)} ms` : "—")}
                   {row("Guard up", s.guard_up_frac != null ? `${Math.round(s.guard_up_frac * 100)}% of the time` : "—")}
+                  {s.bounce_cadence_hz != null &&
+                    row("Bounce cadence", `${s.bounce_cadence_hz.toFixed(1)} Hz`)}
+                  {s.rhythm_predictability != null &&
+                    row(
+                      "Rhythm predictability",
+                      `${Math.round(s.rhythm_predictability * 100)}%${s.rhythm_predictability > 0.75 ? " — timeable, mix it up" : ""}`,
+                    )}
                 </>
               );
             })()}

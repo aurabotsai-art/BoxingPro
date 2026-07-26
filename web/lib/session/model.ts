@@ -58,6 +58,8 @@ export type Summary = {
   avg_guard_recovery_ms: number | null;
   strikes_per_min: number | null;
   guard_up_frac: number | null;
+  bounce_cadence_hz: number | null;
+  rhythm_predictability: number | null;
   /** Epoch ms; stamped when saved to history. */
   at: number;
 };

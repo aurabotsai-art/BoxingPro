@@ -31,3 +31,4 @@ web/public/mediapipe/
 web/public/models/
 web/next-env.d.ts
 *.y4m
+__pycache__/

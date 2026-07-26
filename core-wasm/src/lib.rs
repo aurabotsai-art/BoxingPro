@@ -516,8 +516,28 @@ impl SessionAnalyzer {
             let series = guard_state_series(&self.seq_f, p, &GuardConfig::default());
             guard_up_fraction(&series, 300)
         });
+        // Bounce rhythm from mid-hip height (core autocorrelation; None when
+        // flat-footed / window too short — absence is the honest answer).
+        let rhythm = {
+            use boxingpro_core::rhythm::{analyze, RhythmConfig};
+            use boxingpro_core::types::Joint;
+            let samples: Vec<(f64, f64)> = self
+                .seq_f
+                .frames
+                .iter()
+                .filter_map(|f| {
+                    let (l, r) = (f.get(Joint::LeftHip)?, f.get(Joint::RightHip)?);
+                    Some((f.t_ms, (l.y + r.y) / 2.0))
+                })
+                .collect();
+            analyze(&samples, &RhythmConfig::default())
+        };
+        let (cadence, predict) = match rhythm {
+            Some(r) => (Some(r.cadence_hz), Some(r.predictability_index)),
+            None => (None, None),
+        };
         format!(
-            "{{\"duration_ms\":{:.0},\"strikes_left\":{},\"strikes_right\":{},\"avg_peak_speed\":{},\"avg_peak_speed_left\":{},\"avg_peak_speed_right\":{},\"max_peak_speed\":{},\"avg_guard_recovery_ms\":{},\"strikes_per_min\":{},\"guard_up_frac\":{}}}",
+            "{{\"duration_ms\":{:.0},\"strikes_left\":{},\"strikes_right\":{},\"avg_peak_speed\":{},\"avg_peak_speed_left\":{},\"avg_peak_speed_right\":{},\"max_peak_speed\":{},\"avg_guard_recovery_ms\":{},\"strikes_per_min\":{},\"guard_up_frac\":{},\"bounce_cadence_hz\":{},\"rhythm_predictability\":{}}}",
             dur_ms,
             self.left.candidates().len(),
             self.right.candidates().len(),
@@ -528,6 +548,8 @@ impl SessionAnalyzer {
             fmt_opt(avg_recovery, 0),
             fmt_opt(per_min, 1),
             fmt_opt(guard_up, 3),
+            fmt_opt(cadence, 2),
+            fmt_opt(predict, 3),
         )
     }
 }
