@@ -11,13 +11,21 @@
 //! the detector thresholds are calibrated in m/s.
 
 use boxingpro_core::events::{DetectorConfig, Hand, LiveDetector};
+use boxingpro_core::filters::OneEuro;
 use boxingpro_core::metrics::{strike_metrics, MetricsConfig};
 use boxingpro_core::types::{BodyProfile, Keypoint, PoseFrame, Sequence, Stance, JOINT_COUNT};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct SessionAnalyzer {
+    /// Raw frames as pushed — the archive/export path. Never filtered:
+    /// the data flywheel wants sensor truth, not our smoothing choices.
     seq: Sequence,
+    /// One-Euro-filtered frames — the analysis path (detection, metrics,
+    /// guard, profile). Phone-camera world landmarks jitter frame to frame;
+    /// central-difference speed amplifies that noise into false strikes.
+    seq_f: Sequence,
+    filters: Vec<[OneEuro; 3]>,
     profile: Option<BodyProfile>,
     left: LiveDetector,
     right: LiveDetector,
@@ -76,6 +84,16 @@ impl SessionAnalyzer {
         let cfg = DetectorConfig::default();
         SessionAnalyzer {
             seq: Sequence::default(),
+            seq_f: Sequence::default(),
+            filters: (0..JOINT_COUNT)
+                .map(|_| {
+                    [
+                        OneEuro::keypoint_default(),
+                        OneEuro::keypoint_default(),
+                        OneEuro::keypoint_default(),
+                    ]
+                })
+                .collect(),
             profile: None,
             left: LiveDetector::new(Hand::Left, cfg.clone()),
             right: LiveDetector::new(Hand::Right, cfg),
@@ -124,17 +142,32 @@ impl SessionAnalyzer {
                 });
             }
         }
+        // Filtered twin of the frame for the analysis path. The z channel's
+        // filter only advances when depth is present, so gaps stay honest.
+        let mut ff = PoseFrame::empty(t_ms);
+        for (i, j) in pf.joints.iter().enumerate() {
+            if let Some(k) = j {
+                let f = &mut self.filters[i];
+                ff.joints[i] = Some(Keypoint {
+                    x: f[0].filter(t_ms, k.x),
+                    y: f[1].filter(t_ms, k.y),
+                    z: k.z.map(|z| f[2].filter(t_ms, z)),
+                    confidence: k.confidence,
+                });
+            }
+        }
         self.seq.frames.push(pf);
-        self.left.advance(&self.seq);
-        self.right.advance(&self.seq);
+        self.seq_f.frames.push(ff);
+        self.left.advance(&self.seq_f);
+        self.right.advance(&self.seq_f);
         // Auto-profile: first estimate as soon as possible (every 60 frames
         // until one sticks), then keep refining every 300 frames — the guard
         // median converges as guard-position frames dominate the session,
         // washing out contamination from punches thrown during the first
         // seconds.
-        let n = self.seq.frames.len();
+        let n = self.seq_f.frames.len();
         if (self.profile.is_none() && n.is_multiple_of(60)) || n.is_multiple_of(300) {
-            if let Some(mut p) = auto_profile_from(&self.seq) {
+            if let Some(mut p) = auto_profile_from(&self.seq_f) {
                 p.stance = self.stance; // refresh must not clobber the declared stance
                 self.profile = Some(p);
             }
@@ -169,7 +202,7 @@ impl SessionAnalyzer {
         let Some((hand, c)) = self.last_candidate() else {
             return "null".into();
         };
-        let m = strike_metrics(&self.seq, c, profile, &MetricsConfig::default());
+        let m = strike_metrics(&self.seq_f, c, profile, &MetricsConfig::default());
         format!(
             "{{\"hand\":\"{}\",\"peak_speed\":{:.2},\"extension_frac\":{},\"guard_recovery_ms\":{}}}",
             if hand == Hand::Left { "left" } else { "right" },
@@ -202,7 +235,7 @@ impl SessionAnalyzer {
             return String::new();
         };
         let th = FaultThresholds::default();
-        let m = strike_metrics(&self.seq, c, profile, &MetricsConfig::default());
+        let m = strike_metrics(&self.seq_f, c, profile, &MetricsConfig::default());
         match m.guard_recovery_ms {
             // None on a completed strike = never returned to guard within the
             // search window — the worst case, not missing data (faults.rs).
@@ -217,7 +250,7 @@ impl SessionAnalyzer {
     /// the profile locks; extension is omitted pending calibrated profiles
     /// (see `last_strike_cue`).
     pub fn strikes_json(&self) -> String {
-        let t0 = self.seq.frames.first().map_or(0.0, |f| f.t_ms);
+        let t0 = self.seq_f.frames.first().map_or(0.0, |f| f.t_ms);
         let mut all: Vec<(Hand, &boxingpro_core::events::StrikeCandidate)> = Vec::new();
         for d in [&self.left, &self.right] {
             for c in d.candidates() {
@@ -229,11 +262,11 @@ impl SessionAnalyzer {
             .iter()
             .map(|(h, c)| {
                 let rec = self.profile.as_ref().and_then(|p| {
-                    strike_metrics(&self.seq, c, p, &MetricsConfig::default()).guard_recovery_ms
+                    strike_metrics(&self.seq_f, c, p, &MetricsConfig::default()).guard_recovery_ms
                 });
                 format!(
                     "{{\"t_ms\":{:.0},\"hand\":\"{}\",\"peak_speed\":{:.2},\"guard_recovery_ms\":{}}}",
-                    self.seq.frames[c.peak_idx].t_ms - t0,
+                    self.seq_f.frames[c.peak_idx].t_ms - t0,
                     if *h == Hand::Left { "left" } else { "right" },
                     c.peak_speed_mps,
                     rec.map_or("null".to_string(), |v| format!("{v:.0}")),
@@ -252,7 +285,7 @@ impl SessionAnalyzer {
         let Some(p) = &self.profile else {
             return String::new();
         };
-        let Some(f) = self.seq.frames.last() else {
+        let Some(f) = self.seq_f.frames.last() else {
             return String::new();
         };
         match guard_state_frame(f, p, &GuardConfig::default()) {
@@ -326,7 +359,7 @@ impl SessionAnalyzer {
     /// guard recovery. Deterministic Metrics Core numbers only; anything
     /// unobservable is `null` (honesty rule, docs/03).
     pub fn summary_json(&self) -> String {
-        let dur_ms = match (self.seq.frames.first(), self.seq.frames.last()) {
+        let dur_ms = match (self.seq_f.frames.first(), self.seq_f.frames.last()) {
             (Some(a), Some(b)) => b.t_ms - a.t_ms,
             _ => 0.0,
         };
@@ -336,7 +369,7 @@ impl SessionAnalyzer {
             for c in det.candidates() {
                 speeds.push(c.peak_speed_mps);
                 if let Some(p) = &self.profile {
-                    let m = strike_metrics(&self.seq, c, p, &MetricsConfig::default());
+                    let m = strike_metrics(&self.seq_f, c, p, &MetricsConfig::default());
                     if let Some(r) = m.guard_recovery_ms {
                         recoveries.push(r);
                     }
@@ -357,7 +390,7 @@ impl SessionAnalyzer {
         // Honesty gate: needs ≥300 observed frames (~5-10s) to be a claim.
         let guard_up = self.profile.as_ref().and_then(|p| {
             use boxingpro_core::guard::{guard_state_series, guard_up_fraction, GuardConfig};
-            let series = guard_state_series(&self.seq, p, &GuardConfig::default());
+            let series = guard_state_series(&self.seq_f, p, &GuardConfig::default());
             guard_up_fraction(&series, 300)
         });
         format!(
@@ -441,6 +474,59 @@ mod tests {
         let s = a.summary_json();
         assert!(s.contains("\"strikes_left\":1"), "{s}");
         assert!(s.contains("\"strikes_right\":0"), "{s}");
+    }
+
+    /// Deterministic per-(frame, joint, axis) pseudo-noise in [-amp, amp].
+    fn jitter(seq: &Sequence, amp: f64) -> Sequence {
+        let mut out = seq.clone();
+        for (fi, f) in out.frames.iter_mut().enumerate() {
+            for (ji, j) in f.joints.iter_mut().enumerate() {
+                if let Some(k) = j {
+                    // splitmix64 — decorrelated across frames, unlike a
+                    // linear hash whose sawtooth central-difference ignores.
+                    let h = |ax: usize| {
+                        let mut z = (fi as u64)
+                            .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+                            .wrapping_add(ji as u64 * 0x0100_0000_01B3)
+                            .wrapping_add(ax as u64);
+                        z ^= z >> 30;
+                        z = z.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+                        z ^= z >> 27;
+                        z = z.wrapping_mul(0x94D0_49BB_1331_11EB);
+                        z ^= z >> 31;
+                        ((z % 10000) as f64 / 10000.0 - 0.5) * 2.0 * amp
+                    };
+                    k.x += h(0);
+                    k.y += h(1);
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn one_euro_filtering_kills_jitter_false_positives() {
+        // ±70mm landmark jitter — a bad-lighting worst case for phone world
+        // landmarks (±35mm typical peaks at ~3 m/s, right at the detector's
+        // min-peak gate) — must not create phantom strikes. The raw path must
+        // actually be fooled at this amplitude (otherwise this test proves
+        // nothing), and the filtered analyzer must still count only the jab.
+        let jab = SyntheticJab {
+            idle_ms: 1200.0,
+            ..SyntheticJab::default()
+        };
+        let noisy = jitter(&jab_sequence(1.8, &jab), 0.07);
+
+        let cfg = DetectorConfig::default();
+        let raw_count = boxingpro_core::events::detect_strikes(&noisy, Hand::Left, &cfg).len()
+            + boxingpro_core::events::detect_strikes(&noisy, Hand::Right, &cfg).len();
+        assert!(
+            raw_count > 1,
+            "noise amplitude too low to fool the raw path (got {raw_count}); raise it"
+        );
+
+        let a = analyzer_from(&noisy);
+        assert_eq!(a.strike_count(), 1, "filtered path must count only the jab");
     }
 
     #[test]
