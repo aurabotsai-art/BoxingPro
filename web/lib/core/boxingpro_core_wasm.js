@@ -354,6 +354,15 @@ export class SessionAnalyzer {
             wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
         }
     }
+    /**
+     * True once the session hit the frame cap; pushes are ignored from
+     * then on. The UI auto-ends the session to save what was measured.
+     * @returns {boolean}
+     */
+    is_full() {
+        const ret = wasm.sessionanalyzer_is_full(this.__wbg_ptr);
+        return ret !== 0;
+    }
 }
 if (Symbol.dispose) SessionAnalyzer.prototype[Symbol.dispose] = SessionAnalyzer.prototype.free;
 

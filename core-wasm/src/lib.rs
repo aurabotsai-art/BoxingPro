@@ -77,6 +77,17 @@ fn auto_profile_from(seq: &Sequence) -> Option<BodyProfile> {
     })
 }
 
+/// Hard frame cap ≈ 30min @ 30fps / 15min @ 60fps. Both sequences together
+/// cost ~848B × 2 per frame (measured), so the cap bounds a session at
+/// ~87MB — beyond it, low-end phones start dying. The UI auto-ends (saving
+/// the summary + archive) when `is_full()` trips. Packed f32 storage is the
+/// planned long-session fix (docs/12).
+pub const MAX_SESSION_FRAMES: usize = 54_000;
+
+/// Auto-profile refresh stops here: the guard median is stable long before
+/// this, and each refresh is an O(n log n) sort over the whole session.
+const PROFILE_REFRESH_MAX_FRAMES: usize = 3_000;
+
 #[wasm_bindgen]
 impl SessionAnalyzer {
     #[wasm_bindgen(constructor)]
@@ -125,6 +136,9 @@ impl SessionAnalyzer {
     /// Push one frame. `joints` must be 21×4 (x, y, z, confidence); z=NaN
     /// when unknown. Coordinates in meters (MediaPipe world landmarks).
     pub fn push_frame(&mut self, t_ms: f64, joints: &[f64]) {
+        if self.seq.frames.len() >= MAX_SESSION_FRAMES {
+            return; // full: callers watch is_full() and auto-end
+        }
         let mut pf = PoseFrame::empty(t_ms);
         for i in 0..JOINT_COUNT.min(joints.len() / 4) {
             let (x, y, z, c) = (
@@ -166,7 +180,9 @@ impl SessionAnalyzer {
         // washing out contamination from punches thrown during the first
         // seconds.
         let n = self.seq_f.frames.len();
-        if (self.profile.is_none() && n.is_multiple_of(60)) || n.is_multiple_of(300) {
+        let refresh = (self.profile.is_none() && n.is_multiple_of(60))
+            || (n <= PROFILE_REFRESH_MAX_FRAMES && n.is_multiple_of(300));
+        if refresh {
             if let Some(mut p) = auto_profile_from(&self.seq_f) {
                 p.stance = self.stance; // refresh must not clobber the declared stance
                 self.profile = Some(p);
@@ -176,6 +192,12 @@ impl SessionAnalyzer {
 
     pub fn frame_count(&self) -> usize {
         self.seq.frames.len()
+    }
+
+    /// True once the session hit the frame cap; pushes are ignored from
+    /// then on. The UI auto-ends the session to save what was measured.
+    pub fn is_full(&self) -> bool {
+        self.seq.frames.len() >= MAX_SESSION_FRAMES
     }
 
     /// Live strike count across both hands. O(1): the incremental detectors
@@ -598,6 +620,17 @@ mod tests {
             );
             println!("   (jab truth peak {truth:.2} m/s)");
         }
+    }
+
+    #[test]
+    fn frame_cap_stops_growth_and_reports_full() {
+        let mut a = SessionAnalyzer::new();
+        let buf = vec![0.0; JOINT_COUNT * 4]; // all-unobserved frames: cheap
+        for i in 0..(MAX_SESSION_FRAMES + 500) {
+            a.push_frame(i as f64 * 16.6, &buf);
+        }
+        assert_eq!(a.frame_count(), MAX_SESSION_FRAMES);
+        assert!(a.is_full());
     }
 
     #[test]

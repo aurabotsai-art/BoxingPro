@@ -6,6 +6,7 @@ export const sessionanalyzer_archive_json: (a: number, b: number, c: number, d: 
 export const sessionanalyzer_frame_count: (a: number) => number;
 export const sessionanalyzer_guard_state_now: (a: number, b: number) => void;
 export const sessionanalyzer_has_profile: (a: number) => number;
+export const sessionanalyzer_is_full: (a: number) => number;
 export const sessionanalyzer_last_strike_cue: (a: number, b: number) => void;
 export const sessionanalyzer_last_strike_json: (a: number, b: number) => void;
 export const sessionanalyzer_new: () => number;

@@ -72,6 +72,11 @@ export class SessionAnalyzer {
    * Current stance as a string (for HUD/state display).
    */
   stance(): string;
+  /**
+   * True once the session hit the frame cap; pushes are ignored from
+   * then on. The UI auto-ends the session to save what was measured.
+   */
+  is_full(): boolean;
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -83,6 +88,7 @@ export interface InitOutput {
   readonly sessionanalyzer_frame_count: (a: number) => number;
   readonly sessionanalyzer_guard_state_now: (a: number, b: number) => void;
   readonly sessionanalyzer_has_profile: (a: number) => number;
+  readonly sessionanalyzer_is_full: (a: number) => number;
   readonly sessionanalyzer_last_strike_cue: (a: number, b: number) => void;
   readonly sessionanalyzer_last_strike_json: (a: number, b: number) => void;
   readonly sessionanalyzer_new: () => number;

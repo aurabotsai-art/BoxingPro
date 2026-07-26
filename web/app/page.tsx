@@ -519,6 +519,13 @@ export default function SessionPage() {
                 ? g
                 : "";
 
+            // Memory cap reached (~30min @ 30fps): auto-save via End so the
+            // session's data is kept instead of silently dropped.
+            if (frames % 15 === 0 && analyzer.is_full()) {
+              endRef.current?.();
+              return void requestAnimationFrame(loop);
+            }
+
             if (frames % 15 === 0) {
               const raw = analyzer.last_strike_json();
               setHud({
