@@ -1,0 +1,32 @@
+{
+  "desc": "Telegraph (hand dip) as the dominant fault -> renderer must resolve the newest taxonomy entry and prescribe one of its drills",
+  "analysis": {
+    "version": 1,
+    "session_id": "c0ffee00-0000-0000-0000-000000000006",
+    "tier": "deep_lite",
+    "counts": {
+      "strikes": 96,
+      "frames": 14400,
+      "duration_ms": 480000
+    },
+    "faults": [
+      {
+        "fault_id": "telegraph_hand_dip",
+        "frequency": 0.41,
+        "evidence_t_ms": [8100, 32000, 61000, 118000],
+        "cause_estimate": "loading_habit"
+      },
+      {
+        "fault_id": "hands_drop_after_punch",
+        "frequency": 0.08,
+        "evidence_t_ms": [20500],
+        "cause_estimate": "habit"
+      }
+    ]
+  },
+  "expect": {
+    "block_types_include": ["praise", "primary_focus", "prescription"],
+    "primary_fault": "telegraph_hand_dip",
+    "prescribed_drill_in": ["no_windup_wall_jabs", "prompt_double_return", "mirror_return_high"]
+  }
+}
