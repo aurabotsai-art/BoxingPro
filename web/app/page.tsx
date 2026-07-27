@@ -38,6 +38,7 @@ import {
   ONBOARDED_KEY,
   PB_KEY,
   saveToHistory,
+  SOUND_KEY,
   STANCE_KEY,
 } from "@/lib/session/storage";
 
@@ -178,8 +179,30 @@ export default function SessionPage() {
         beep(audioRef.current);
       }
       soundOnRef.current = !on;
+      try {
+        localStorage.setItem(SOUND_KEY, soundOnRef.current ? "1" : "0");
+      } catch { /* private mode */ }
       return !on;
     });
+  }, []);
+
+  // Restore the saved sound preference. AudioContext still needs a user
+  // gesture, so arm a one-time pointer listener that creates it on the first
+  // tap anywhere — the toggle reads on immediately, audio unlocks on touch.
+  useEffect(() => {
+    let saved = false;
+    try {
+      saved = localStorage.getItem(SOUND_KEY) === "1";
+    } catch { /* private mode */ }
+    if (!saved) return;
+    soundOnRef.current = true;
+    setSoundOn(true);
+    const unlock = () => {
+      audioRef.current ??= new AudioContext();
+      audioRef.current.resume();
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    return () => window.removeEventListener("pointerdown", unlock);
   }, []);
 
   useEffect(() => {
