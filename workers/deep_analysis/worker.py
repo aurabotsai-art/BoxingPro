@@ -20,6 +20,16 @@ def process_archive(archive_path: Path, out_dir: Path) -> Path:
         raise RuntimeError(f"analyze failed: {r.stderr[-500:]}")
     out = out_dir / archive_path.name.replace(".skeleton.json", ".analysis.json")
     out.write_text(r.stdout)
+    # Tier-2-lite completes with a CoachOutput: same template renderer the
+    # eval suite pins (LLM narration replaces the template path at M5).
+    c = subprocess.run(
+        [sys.executable, str(REPO / "coach_brain" / "render_template.py"), str(out)],
+        capture_output=True, text=True,
+    )
+    if c.returncode != 0:
+        raise RuntimeError(f"coach render failed: {c.stderr[-500:]}")
+    coach_out = out_dir / out.name.replace(".analysis.json", ".coach.json")
+    coach_out.write_text(c.stdout)
     # TODO(M6/GPU): whole-body re-pose (RTMW) for video-input jobs
     # TODO(Phase 2): temporal 3D lifting -> kinetic-chain metrics
     # TODO(E11): claim/heartbeat/complete against Supabase jobs table
