@@ -26,7 +26,7 @@ Already done (E0): planning suite docs/00–13 · Rust Metrics Core (types, filt
 | E12 | ◐ **Writable half done** | `coach_brain/prompts/film_study.md` + 6-case eval suite (has caught a real prioritization bug AND a dead-assertion hole in its own evaluator; runs against template path today; full-chain contract check in tools/pipeline_check.sh) | M5 (API key) for the LLM path |
 | E13 | ◐ **Skeleton done** | `workers/deep_analysis/worker.py` (--once mode runs archives through the real CLI today; Supabase poll loop lands with E11) | M6 to deploy; E11 for queue |
 | E14 | ◐ **Pipeline dry-run green** | tools/train/: extract_features.py (archive → analyze → labeled feature CSV; takes labeler exports or fixed labels) + train.py (logreg over Metrics Core features, k-fold report, sklearn-free portable model.json). Dry-run: 40 synthetic jab/hook archives (new `synth-hook` CLI + core hook_sequence) → 40 events → 5-fold 1.000 (shape check — synthetic classes are trivially separable). Real training awaits labeled footage | M2 → E9 labeling |
-| E15 | **Golden-clip CI harness** | Labeled clips wired into CI regression gates | M2 |
+| E15 | ◐ **Harness live, synthetic seeds** | tools/golden/run_golden.py: known clips → analyze → exact diff vs committed expected outputs (6dp), failure-detection self-tested, wired into CI's pipeline job. 4 synthetic cases (jab/hook × fps/height) guard the core's numbers today; real labeled clips join the case list when M2 footage lands | M2 for real clips |
 
 Recommended order: E1 → E2 → E3 → E6 → E4 → E5 → E7 → E8 → E9 → (E10/E11 when M3) → E12 → E13 → E14 → E15. **E1–E9 have zero owner dependencies** — "continue" advances them.
 

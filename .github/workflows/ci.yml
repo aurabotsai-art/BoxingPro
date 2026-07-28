@@ -46,6 +46,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: pip install jsonschema pyyaml
       - run: tools/pipeline_check.sh
+      - name: Golden-clip regression (synthetic seeds)
+        run: python3 tools/golden/run_golden.py
 
   web:
     name: Web app (production build, mirrors Vercel)
