@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { beep, bell } from "@/lib/session/audio";
+import { shareCard } from "@/lib/session/sharecard";
 import {
   BONES,
   bucketRounds,
@@ -1026,6 +1027,13 @@ export default function SessionPage() {
                 also kept on this device (last {IDB_KEEP} sessions)
               </div>
             )}
+            <button
+              onClick={() => shareCard(summary.current, pb).catch(() => {})}
+              data-testid="share-card"
+              style={{ marginTop: 10, width: "100%", background: "#1a1c22", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "11px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+            >
+              📤 Share session card
+            </button>
             <button
               onClick={() => {
                 URL.revokeObjectURL(summary.archiveUrl);
