@@ -28,7 +28,8 @@ import {
   ROUND_REST_S,
   ROUND_WORK_S,
 } from "@/lib/session/model";
-import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary } from "@/lib/session/model";
+import { weeklyStats } from "@/lib/session/model";
+import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary, WeekStats } from "@/lib/session/model";
 import {
   IDB_KEEP,
   idbArchiveKeys,
@@ -97,6 +98,7 @@ export default function SessionPage() {
   const [stance, setStance] = useState<"orthodox" | "southpaw">("orthodox");
   const [showSettings, setShowSettings] = useState(false);
   const [past, setPast] = useState<Array<{ s: Summary; hasArchive: boolean }>>([]);
+  const [week, setWeek] = useState<WeekStats | null>(null);
   // PWA install: Chrome fires beforeinstallprompt (stash + offer a button);
   // iOS Safari never does — show Share→Add-to-Home-Screen instructions.
   const installEvtRef = useRef<{ prompt: () => Promise<unknown> } | null>(null);
@@ -124,6 +126,7 @@ export default function SessionPage() {
     setShowSettings((v) => {
       if (!v) {
         const history = loadHistory();
+        setWeek(history.length ? weeklyStats(history, Date.now()) : null);
         idbArchiveKeys()
           .then((keys) => {
             const set = new Set(keys);
@@ -760,6 +763,17 @@ export default function SessionPage() {
             <div style={{ fontSize: 11, color: "#9aa0aa", marginTop: 10 }}>
               📲 Install: tap Share, then &quot;Add to Home Screen&quot; — full screen, works offline.
             </div>
+          )}
+          {week && week.sessions7d > 0 && (
+            <>
+              <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "12px 0 6px" }}>THIS WEEK</div>
+              <div data-testid="week-stats" style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#c6ccd6", fontVariantNumeric: "tabular-nums" }}>
+                <span>{week.sessions7d} session{week.sessions7d === 1 ? "" : "s"}</span>
+                <span>{week.strikes7d} strikes</span>
+                <span>{week.minutes7d} min</span>
+                {week.streakDays >= 2 && <span style={{ color: "#ffd75e", fontWeight: 700 }}>🔥 {week.streakDays}-day streak</span>}
+              </div>
+            </>
           )}
           {past.length > 0 && (
             <>

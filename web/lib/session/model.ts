@@ -108,6 +108,35 @@ export const CUE_TEXT: Record<string, string> = {
 export const CUE_SHOW_MS = 2800;
 export const CUE_GAP_MS = 6000;
 
+export type WeekStats = {
+  sessions7d: number;
+  strikes7d: number;
+  minutes7d: number;
+  /** Consecutive training days ending today (or yesterday if none today). */
+  streakDays: number;
+};
+
+/** Rollups over stored session summaries. `now` injected for testability. */
+export function weeklyStats(history: Summary[], now: number): WeekStats {
+  const weekAgo = now - 7 * 86_400_000;
+  const recent = history.filter((s) => s.at >= weekAgo);
+  const dayKey = (t: number) => new Date(t).toDateString();
+  const days = new Set(history.map((s) => dayKey(s.at)));
+  let streak = 0;
+  let cursor = now;
+  if (!days.has(dayKey(now))) cursor -= 86_400_000; // grace: today not trained yet
+  while (days.has(dayKey(cursor))) {
+    streak++;
+    cursor -= 86_400_000;
+  }
+  return {
+    sessions7d: recent.length,
+    strikes7d: recent.reduce((a, s) => a + s.strikes_left + s.strikes_right, 0),
+    minutes7d: Math.round(recent.reduce((a, s) => a + s.duration_ms, 0) / 60_000),
+    streakDays: streak,
+  };
+}
+
 /** Bucket work-phase strikes into rounds. offsetMs = rounds start relative
  *  to the session clock; strikes before it (or in rest) are not counted. */
 export function bucketRounds(
