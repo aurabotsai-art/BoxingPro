@@ -99,6 +99,70 @@ impl SyntheticJab {
     }
 }
 
+/// Parameters of a synthetic lead hook: wrist sweeps a semicircular arc of
+/// `radius_m` from guard to guard+[2r, 0] and back. Chord/path ≈ 2/π on the
+/// way out — the geometric signature that separates hooks from straights.
+pub struct SyntheticHook {
+    pub fps: f64,
+    pub radius_m: f64,
+    pub out_ms: f64,
+    pub back_ms: f64,
+    pub idle_ms: f64,
+}
+
+impl Default for SyntheticHook {
+    fn default() -> Self {
+        SyntheticHook {
+            fps: 60.0,
+            radius_m: 0.25,
+            out_ms: 160.0,
+            back_ms: 200.0,
+            idle_ms: 400.0,
+        }
+    }
+}
+
+/// Generate a sequence containing exactly one left-hand lead hook.
+pub fn hook_sequence(height_m: f64, p: &SyntheticHook) -> Sequence {
+    let prof = profile(height_m);
+    let dt = 1000.0 / p.fps;
+    let total = p.idle_ms + p.out_ms + p.back_ms + p.idle_ms;
+    let n = (total / dt).ceil() as usize + 1;
+    let guard = prof.guard_left;
+
+    let arc_point = |prog: f64| {
+        // prog 0..1 sweeps the semicircle guard → guard+[2r, 0].
+        let ang = core::f64::consts::PI * (1.0 - prog.clamp(0.0, 1.0));
+        [
+            guard[0] + p.radius_m + p.radius_m * ang.cos(),
+            guard[1] + p.radius_m * ang.sin(),
+        ]
+    };
+
+    let mut frames = Vec::with_capacity(n);
+    for i in 0..n {
+        let t = i as f64 * dt;
+        let mut f = standing_frame(t, height_m);
+        f.set(
+            Joint::RightWrist,
+            kp(prof.guard_right[0], prof.guard_right[1]),
+        );
+        let phase_t = t - p.idle_ms;
+        let w = if phase_t < 0.0 {
+            guard
+        } else if phase_t <= p.out_ms {
+            arc_point(ease(phase_t / p.out_ms))
+        } else if phase_t <= p.out_ms + p.back_ms {
+            arc_point(1.0 - ease((phase_t - p.out_ms) / p.back_ms))
+        } else {
+            guard
+        };
+        f.set(Joint::LeftWrist, kp(w[0], w[1]));
+        frames.push(f);
+    }
+    Sequence { frames }
+}
+
 /// Generate a sequence containing exactly one left-hand (lead, orthodox) jab:
 /// guard → full extension → back to guard, wrist raised to guard height
 /// throughout. All other joints hold the standing pose.

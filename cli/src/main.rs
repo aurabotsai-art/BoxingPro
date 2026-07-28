@@ -266,10 +266,34 @@ fn aggregates(records: &[StrikeRecord], duration_ms: f64) -> Value {
 
 /// Emit a synthetic single-jab SkeletonArchive (known ground truth) — lets
 /// anyone test `analyze` and downstream tooling without footage.
-fn synth_jab() -> Value {
+/// `fps`/`height` vary the kinematics for training-pipeline dry runs.
+fn synth_jab(fps: f64, height: f64) -> Value {
     use boxingpro_core::synthetic::{jab_sequence, SyntheticJab};
-    let p = SyntheticJab::default();
-    let seq = jab_sequence(1.8, &p);
+    let p = SyntheticJab {
+        fps,
+        ..SyntheticJab::default()
+    };
+    let seq = jab_sequence(height, &p);
+    archive_json(
+        &seq,
+        fps,
+        json!({ "expected_peak_speed_mps": p.expected_peak_speed_mps() }),
+    )
+}
+
+/// Emit a synthetic single-lead-hook SkeletonArchive (arced path — the
+/// straightness contrast class for classifier dry runs).
+fn synth_hook(fps: f64, height: f64) -> Value {
+    use boxingpro_core::synthetic::{hook_sequence, SyntheticHook};
+    let p = SyntheticHook {
+        fps,
+        ..SyntheticHook::default()
+    };
+    let seq = hook_sequence(height, &p);
+    archive_json(&seq, fps, json!({ "class": "lead_hook" }))
+}
+
+fn archive_json(seq: &boxingpro_core::types::Sequence, fps: f64, truth: Value) -> Value {
     let frames: Vec<Value> = seq
         .frames
         .iter()
@@ -289,7 +313,7 @@ fn synth_jab() -> Value {
         "version": 1,
         "session_id": "00000000-0000-0000-0000-00000000beef",
         "capture": {
-            "fps_nominal": p.fps, "width": 0, "height": 0,
+            "fps_nominal": fps, "width": 0, "height": 0,
             "pose_model_id": "synthetic", "device_model": "synthetic",
         },
         "calibration_ref": {
@@ -297,7 +321,7 @@ fn synth_jab() -> Value {
             "scale_anchor": "user_stated",
         },
         "coordinate_space": "camera_metric",
-        "synthetic_truth": { "expected_peak_speed_mps": p.expected_peak_speed_mps() },
+        "synthetic_truth": truth,
         "frames": frames,
     })
 }
@@ -312,9 +336,20 @@ fn main() {
                 std::process::exit(1);
             }
         },
-        Some("synth-jab") => println!("{}", serde_json::to_string(&synth_jab()).unwrap()),
+        Some(cmd @ ("synth-jab" | "synth-hook")) => {
+            let fps = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(60.0);
+            let height = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(1.8);
+            let v = if cmd == "synth-jab" {
+                synth_jab(fps, height)
+            } else {
+                synth_hook(fps, height)
+            };
+            println!("{}", serde_json::to_string(&v).unwrap());
+        }
         _ => {
-            eprintln!("usage: boxingpro analyze <skeleton_archive.json> | boxingpro synth-jab");
+            eprintln!(
+                "usage: boxingpro analyze <skeleton_archive.json> | boxingpro synth-jab [fps] [height] | boxingpro synth-hook [fps] [height]"
+            );
             std::process::exit(2);
         }
     }
