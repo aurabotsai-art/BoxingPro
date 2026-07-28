@@ -24,7 +24,7 @@ import {
   JOINTS,
   MP_TO_CANON,
   PB_SANITY_MPS,
-  ROUND_CYCLE_S,
+  ROUND_REST_S,
   ROUND_WORK_S,
 } from "@/lib/session/model";
 import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary } from "@/lib/session/model";
@@ -38,6 +38,7 @@ import {
   ONBOARDED_KEY,
   PB_KEY,
   saveToHistory,
+  ROUNDLEN_KEY,
   SOUND_KEY,
   STANCE_KEY,
 } from "@/lib/session/storage";
@@ -50,6 +51,24 @@ export default function SessionPage() {
   const soundOnRef = useRef(false);
   const [soundOn, setSoundOn] = useState(false);
   const roundAnchorRef = useRef<number | null>(null); // perf.now() when rounds started
+  const roundWorkSRef = useRef(ROUND_WORK_S);
+  const [roundWorkS, setRoundWorkS] = useState(ROUND_WORK_S);
+  const onRoundLen = useCallback((secs: number) => {
+    roundWorkSRef.current = secs;
+    setRoundWorkS(secs);
+    try {
+      localStorage.setItem(ROUNDLEN_KEY, String(secs));
+    } catch { /* private mode */ }
+  }, []);
+  useEffect(() => {
+    try {
+      const v = Number(localStorage.getItem(ROUNDLEN_KEY));
+      if (v === 120 || v === 180) {
+        roundWorkSRef.current = v;
+        setRoundWorkS(v);
+      }
+    } catch { /* private mode */ }
+  }, []);
   const [roundsOn, setRoundsOn] = useState(false);
   const onRounds = useCallback(() => {
     setRoundsOn((on) => {
@@ -278,7 +297,7 @@ export default function SessionPage() {
           // the rounds anchor maps onto the strike log's session-relative t.
           const rounds =
             roundAnchorRef.current != null
-              ? bucketRounds(log, Math.max(0, roundAnchorRef.current - sessionStart), s.duration_ms)
+              ? bucketRounds(log, Math.max(0, roundAnchorRef.current - sessionStart), s.duration_ms, roundWorkSRef.current)
               : [];
           const history = s.duration_ms > 5000 ? saveToHistory(s) : [s, ...loadHistory()];
           if (s.duration_ms > 5000) {
@@ -429,8 +448,9 @@ export default function SessionPage() {
               }
               // No coaching during rest: punches thrown then are cooldown.
               const anchor = roundAnchorRef.current;
+              const cycleS = roundWorkSRef.current + ROUND_REST_S;
               const inRest =
-                anchor != null && ((now - anchor) / 1000) % ROUND_CYCLE_S >= ROUND_WORK_S;
+                anchor != null && ((now - anchor) / 1000) % cycleS >= roundWorkSRef.current;
               const cueId = inRest ? "" : analyzer.last_strike_cue();
               if (cueId && now - lastCueAt > CUE_GAP_MS) {
                 lastCueAt = now;
@@ -442,13 +462,15 @@ export default function SessionPage() {
 
             let round: Hud["round"] = null;
             if (roundAnchorRef.current != null) {
+              const workS = roundWorkSRef.current;
+              const cycS = workS + ROUND_REST_S;
               const rt = (now - roundAnchorRef.current) / 1000;
-              const within = rt % ROUND_CYCLE_S;
-              const phase: "work" | "rest" = within < ROUND_WORK_S ? "work" : "rest";
+              const within = rt % cycS;
+              const phase: "work" | "rest" = within < workS ? "work" : "rest";
               round = {
-                n: Math.floor(rt / ROUND_CYCLE_S) + 1,
+                n: Math.floor(rt / cycS) + 1,
                 phase,
-                remaining: phase === "work" ? ROUND_WORK_S - within : ROUND_CYCLE_S - within,
+                remaining: phase === "work" ? workS - within : cycS - within,
               };
               if (lastRoundPhase !== null && lastRoundPhase !== phase && soundOnRef.current && audioRef.current) {
                 bell(audioRef.current);
@@ -692,6 +714,29 @@ export default function SessionPage() {
           </div>
           <div style={{ fontSize: 11, color: "#9aa0aa", marginTop: 8 }}>
             Sets which hand is your lead — guard labels and lead-hand metrics depend on it.
+          </div>
+          <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "12px 0 8px" }}>ROUND LENGTH</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {[120, 180].map((secs) => (
+              <button
+                key={secs}
+                onClick={() => onRoundLen(secs)}
+                data-testid={`roundlen-${secs}`}
+                style={{
+                  flex: 1,
+                  background: roundWorkS === secs ? "#1d4f2add" : "#1a1c22",
+                  color: "#eee",
+                  border: `1px solid ${roundWorkS === secs ? "#2f7a44" : "#2c313c"}`,
+                  borderRadius: 10,
+                  padding: "9px 0",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {secs / 60}:00{secs === 120 ? " (amateur)" : " (pro)"}
+              </button>
+            ))}
           </div>
           <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "12px 0 8px" }}>CAMERA</div>
           <button

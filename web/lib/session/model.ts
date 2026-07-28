@@ -114,9 +114,11 @@ export function bucketRounds(
   log: StrikeLogItem[],
   offsetMs: number,
   durationMs: number,
+  workS: number = ROUND_WORK_S,
+  restS: number = ROUND_REST_S,
 ): RoundStat[] {
-  const cycle = ROUND_CYCLE_S * 1000;
-  const work = ROUND_WORK_S * 1000;
+  const cycle = (workS + restS) * 1000;
+  const work = workS * 1000;
   const count = Math.max(1, Math.floor(Math.max(0, durationMs - offsetMs) / cycle) + 1);
   const rounds: RoundStat[] = Array.from({ length: count }, (_, i) => ({
     n: i + 1,

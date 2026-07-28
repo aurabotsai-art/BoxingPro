@@ -9,6 +9,7 @@ import type { Summary } from "./model";
 
 export const STANCE_KEY = "boxingpro.stance.v1";
 export const SOUND_KEY = "boxingpro.sound.v1";
+export const ROUNDLEN_KEY = "boxingpro.roundlen.v1";
 export const PB_KEY = "boxingpro.pb.v1";
 export const ONBOARDED_KEY = "boxingpro.onboarded.v1";
 const HISTORY_KEY = "boxingpro.sessions.v1";
