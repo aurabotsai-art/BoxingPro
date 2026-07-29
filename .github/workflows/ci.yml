@@ -61,6 +61,8 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
         working-directory: web
+      - run: npm test
+        working-directory: web
       # Same command Vercel runs (vercel.json buildCommand): stages MediaPipe
       # wasm + pose model + core wasm into public/, then next build.
       - run: npm run vercel-build
