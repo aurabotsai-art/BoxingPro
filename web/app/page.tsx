@@ -34,6 +34,8 @@ import { notationNamed, parseDrillDuration, punchMix, weeklyStats } from "@/lib/
 import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary, WeekStats } from "@/lib/session/model";
 import { coachTip } from "@/lib/session/coach";
 import { CALL_PLANS, callWords, nextCall, nextGapMs, rng } from "@/lib/session/caller";
+import { scoreDrill } from "@/lib/session/scorer";
+import type { Scorecard } from "@/lib/session/scorer";
 import {
   IDB_KEEP,
   idbArchiveKeys,
@@ -78,8 +80,9 @@ export default function SessionPage() {
   const [roundsOn, setRoundsOn] = useState(false);
   // Guided drill session: round plan comes from the drill's protocol; the
   // HUD loop auto-stops rounds when the planned count completes.
-  const drillRef = useRef<{ id: string; name: string; rounds: number } | null>(null);
+  const drillRef = useRef<{ id: string; name: string; rounds: number; startedPerf: number } | null>(null);
   const [activeDrill, setActiveDrill] = useState<string | null>(null);
+  const [scorecard, setScorecard] = useState<(Scorecard & { name: string }) | null>(null);
   const onRounds = useCallback(() => {
     setRoundsOn((on) => {
       roundAnchorRef.current = on ? null : performance.now();
@@ -101,7 +104,8 @@ export default function SessionPage() {
     callerRef.current = CALL_PLANS[d.id]
       ? { rand: rng(Date.now() >>> 0), nextAt: performance.now() + 3000, prev: null }
       : null;
-    drillRef.current = { id: d.id, name: d.name, rounds: plan.rounds };
+    drillRef.current = { id: d.id, name: d.name, rounds: plan.rounds, startedPerf: performance.now() };
+    setScorecard(null);
     roundWorkSRef.current = plan.workS; // session-scoped override, not persisted
     setRoundWorkS(plan.workS);
     roundAnchorRef.current = performance.now();
@@ -522,9 +526,21 @@ export default function SessionPage() {
                 setActiveDrill(null);
                 setRoundsOn(false);
                 round = null;
+                // Scorecard: grade only strikes thrown inside the drill
+                // window against the drill's measurable success criterion.
+                const windowStart = d.startedPerf - sessionStart;
+                const drillLog = (JSON.parse(analyzer.strikes_json()) as StrikeLogItem[]).filter(
+                  (k) => k.t_ms >= windowStart,
+                );
+                const sc = scoreDrill(d.id, drillLog);
+                setScorecard({ ...sc, name: d.name });
                 if (soundOnRef.current) {
                   if (audioRef.current) bell(audioRef.current);
-                  speak(`${d.name} complete.`);
+                  speak(
+                    `${d.name} complete. ${
+                      sc.verdict === "pass" ? "Criterion met." : sc.verdict === "work" ? sc.lines[0] : ""
+                    }`,
+                  );
                 }
               }
               // Combo caller: during work phases, call the next combo —
@@ -966,6 +982,32 @@ export default function SessionPage() {
               style={{ width: "100%", background: "#ff4d4d", color: "#fff", border: "none", borderRadius: 12, padding: "13px 0", fontSize: 16, fontWeight: 800, cursor: "pointer" }}
             >
               Let&apos;s go
+            </button>
+          </div>
+        </div>
+      )}
+
+      {scorecard && !summary && (
+        <div
+          data-testid="scorecard"
+          style={{ position: "absolute", inset: 0, background: "#0a0a0c99", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 5 }}
+        >
+          <div style={{ background: "#14161c", border: `1px solid ${scorecard.verdict === "pass" ? "#20624a" : scorecard.verdict === "work" ? "#7a4420" : "#262a33"}`, borderRadius: 18, padding: "22px 26px", width: "min(380px, 90vw)" }}>
+            <div style={{ fontSize: 11, letterSpacing: 2, color: "#9aa0aa", fontWeight: 700 }}>DRILL COMPLETE</div>
+            <div style={{ fontSize: 20, fontWeight: 800, margin: "6px 0 2px" }}>{scorecard.name}</div>
+            {scorecard.verdict === "pass" && <div style={{ color: "#7ee08a", fontWeight: 800, fontSize: 15 }}>✓ CRITERION MET</div>}
+            {scorecard.verdict === "work" && <div style={{ color: "#ffb877", fontWeight: 800, fontSize: 15 }}>NEEDS WORK</div>}
+            <div style={{ marginTop: 8 }}>
+              {scorecard.lines.map((l, i) => (
+                <div key={i} style={{ fontSize: 13, color: "#c6ccd6", padding: "3px 0" }}>{l}</div>
+              ))}
+            </div>
+            <button
+              onClick={() => setScorecard(null)}
+              data-testid="scorecard-close"
+              style={{ marginTop: 14, width: "100%", background: "#1a1c22", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "11px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+            >
+              Keep training
             </button>
           </div>
         </div>
