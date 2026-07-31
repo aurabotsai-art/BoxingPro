@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { coachTip } from "./coach";
-import { punchMix } from "./model";
+import { notationNamed, punchMix } from "./model";
 import type { StrikeLogItem, Summary } from "./model";
 
 function summary(over: Partial<Summary> = {}): Summary {
@@ -100,5 +100,14 @@ describe("punchMix", () => {
       { t_ms: 5, hand: "left", peak_speed: 5, guard_recovery_ms: null }, // legacy item, no field
     ];
     expect(punchMix(log)).toEqual({ jab: 2, cross: 1, hook: 1, other: 2 });
+  });
+});
+
+describe("notationNamed", () => {
+  it("shows notation only when at least one punch is named", () => {
+    expect(notationNamed("1-1-2")).toBe(true);
+    expect(notationNamed("1-?")).toBe(true);
+    expect(notationNamed("?-?-?")).toBe(false); // all-ambiguous: burst wording is honest
+    expect(notationNamed(undefined)).toBe(false); // older stored sessions
   });
 });

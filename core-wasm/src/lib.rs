@@ -13,7 +13,9 @@
 use boxingpro_core::events::{DetectorConfig, Hand, LiveDetector};
 use boxingpro_core::filters::OneEuro;
 use boxingpro_core::metrics::{strike_metrics, MetricsConfig};
-use boxingpro_core::types::{BodyProfile, Keypoint, PoseFrame, Sequence, Stance, JOINT_COUNT};
+use boxingpro_core::types::{
+    BodyProfile, Keypoint, PoseFrame, Sequence, Stance, StrikeClass, JOINT_COUNT,
+};
 use wasm_bindgen::prelude::*;
 
 /// Raw frames as pushed, packed as f32 (t_ms stays f64): 344B/frame vs the
@@ -282,20 +284,32 @@ impl SessionAnalyzer {
         )
     }
 
-    /// Heuristic punch name from measured geometry + declared stance — a T2
+    /// Heuristic punch class from measured geometry + declared stance — a T2
     /// readout, not a trained classifier: straight-line path from the lead
     /// hand is a jab, from the rear hand a cross; a strongly curved path is
-    /// a hook. The ambiguous straightness band (0.80–0.90) and uppercuts
-    /// stay null rather than guessing (docs/03).
-    fn punch_label(&self, hand: Hand, straightness: Option<f64>) -> &'static str {
+    /// a lead/rear hook by hand. The ambiguous straightness band (0.80–0.90)
+    /// and uppercuts stay Unclassified rather than guessing (docs/03).
+    fn punch_class(&self, hand: Hand, straightness: Option<f64>) -> StrikeClass {
         let lead = match self.stance {
             Stance::Orthodox => Hand::Left,
             Stance::Southpaw => Hand::Right,
         };
         match straightness {
-            Some(s) if s >= 0.90 && hand == lead => "\"jab\"",
-            Some(s) if s >= 0.90 => "\"cross\"",
-            Some(s) if s <= 0.80 => "\"hook\"",
+            Some(s) if s >= 0.90 && hand == lead => StrikeClass::Jab,
+            Some(s) if s >= 0.90 => StrikeClass::Cross,
+            Some(s) if s <= 0.80 && hand == lead => StrikeClass::LeadHook,
+            Some(s) if s <= 0.80 => StrikeClass::RearHook,
+            _ => StrikeClass::Unclassified,
+        }
+    }
+
+    /// UI-facing name for `punch_class` (hooks collapse to "hook" — the
+    /// lead/rear split matters for notation, not the strike card).
+    fn punch_label(&self, hand: Hand, straightness: Option<f64>) -> &'static str {
+        match self.punch_class(hand, straightness) {
+            StrikeClass::Jab => "\"jab\"",
+            StrikeClass::Cross => "\"cross\"",
+            StrikeClass::LeadHook | StrikeClass::RearHook => "\"hook\"",
             _ => "null",
         }
     }
@@ -470,27 +484,32 @@ impl SessionAnalyzer {
     }
 
     /// Combos — bursts of ≥2 strikes with ≤600ms between apexes — as a JSON
-    /// array of `{start_ms, n, avg_interval_ms}` (session-relative time).
-    /// Pure cadence data via the core's assembler; punch classes stay
-    /// unclassified until the trained classifier ships.
+    /// array of `{start_ms, n, avg_interval_ms, notation}` (session-relative
+    /// time). Strikes carry the same heuristic class as the strike card
+    /// ("1-1-2"; ambiguous shapes render "?" — the assembler chains them
+    /// honestly instead of dropping them).
     pub fn combos_json(&self) -> String {
         use boxingpro_core::combos::assemble;
         use boxingpro_core::faults::StrikeRecord;
         use boxingpro_core::metrics::StrikeMetrics;
-        use boxingpro_core::types::StrikeClass;
         let t0 = self.seq_f.frames.first().map_or(0.0, |f| f.t_ms);
         let mut recs: Vec<StrikeRecord> = [&self.left, &self.right]
             .into_iter()
-            .flat_map(|d| d.candidates())
-            .map(|c| StrikeRecord {
-                t_apex_ms: self.seq_f.frames[c.peak_idx].t_ms,
-                class: StrikeClass::Unclassified,
-                metrics: StrikeMetrics {
-                    peak_speed_mps: c.peak_speed_mps,
-                    extension_frac: None,
-                    straightness: None,
-                    guard_recovery_ms: None,
-                },
+            .flat_map(|d| d.candidates().iter().map(move |c| (d.hand(), c)))
+            .map(|(h, c)| {
+                let straightness = self.profile.as_ref().and_then(|p| {
+                    strike_metrics(&self.seq_f, c, p, &MetricsConfig::default()).straightness
+                });
+                StrikeRecord {
+                    t_apex_ms: self.seq_f.frames[c.peak_idx].t_ms,
+                    class: self.punch_class(h, straightness),
+                    metrics: StrikeMetrics {
+                        peak_speed_mps: c.peak_speed_mps,
+                        extension_frac: None,
+                        straightness,
+                        guard_recovery_ms: None,
+                    },
+                }
             })
             .collect();
         recs.sort_by(|a, b| a.t_apex_ms.partial_cmp(&b.t_apex_ms).unwrap());
@@ -500,10 +519,11 @@ impl SessionAnalyzer {
             .map(|c| {
                 let avg = c.intervals_ms.iter().sum::<f64>() / c.intervals_ms.len() as f64;
                 format!(
-                    "{{\"start_ms\":{:.0},\"n\":{},\"avg_interval_ms\":{:.0}}}",
+                    "{{\"start_ms\":{:.0},\"n\":{},\"avg_interval_ms\":{:.0},\"notation\":\"{}\"}}",
                     c.start_ms - t0,
                     c.classes.len(),
                     avg,
+                    c.notation(),
                 )
             })
             .collect();
@@ -823,6 +843,8 @@ mod tests {
         assert_eq!(a.strike_count(), 3);
         let combos = a.combos_json();
         assert!(combos.contains("\"n\":3"), "{combos}");
+        // Three straight lefts under orthodox = triple jab in notation.
+        assert!(combos.contains("\"notation\":\"1-1-1\""), "{combos}");
     }
 
     #[test]

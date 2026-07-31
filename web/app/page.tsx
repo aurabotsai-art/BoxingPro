@@ -28,7 +28,7 @@ import {
   ROUND_REST_S,
   ROUND_WORK_S,
 } from "@/lib/session/model";
-import { punchMix, weeklyStats } from "@/lib/session/model";
+import { notationNamed, punchMix, weeklyStats } from "@/lib/session/model";
 import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary, WeekStats } from "@/lib/session/model";
 import { coachTip } from "@/lib/session/coach";
 import {
@@ -778,6 +778,43 @@ export default function SessionPage() {
               </div>
             </>
           )}
+          {(() => {
+            // Speed trend across stored sessions (chronological); needs 3+
+            // measured points to be worth drawing.
+            const pts = past
+              .map(({ s }) => s)
+              .filter((s) => s.avg_peak_speed != null)
+              .reverse();
+            if (pts.length < 3) return null;
+            const W = 300;
+            const H = 40;
+            const vMax = Math.max(...pts.map((s) => s.avg_peak_speed as number));
+            const vMin = Math.min(...pts.map((s) => s.avg_peak_speed as number));
+            const span = Math.max(vMax - vMin, 0.5);
+            const xy = (v: number, i: number) =>
+              `${(i / (pts.length - 1)) * (W - 8) + 4},${H - 6 - ((v - vMin) / span) * (H - 14)}`;
+            return (
+              <>
+                <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "12px 0 6px" }}>
+                  AVG HAND SPEED — LAST {pts.length} SESSIONS
+                </div>
+                <svg data-testid="trend" viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block" }}>
+                  <polyline
+                    fill="none"
+                    stroke="#61dafb"
+                    strokeWidth="1.8"
+                    points={pts.map((s, i) => xy(s.avg_peak_speed as number, i)).join(" ")}
+                  />
+                  <text x={W - 2} y={9} textAnchor="end" fontSize="9" fill="#9aa0aa">
+                    {vMax.toFixed(1)} m/s
+                  </text>
+                  <text x={W - 2} y={H - 1} textAnchor="end" fontSize="9" fill="#565c66">
+                    {vMin.toFixed(1)}
+                  </text>
+                </svg>
+              </>
+            );
+          })()}
           {past.length > 0 && (
             <>
               <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "12px 0 6px" }}>PAST SESSIONS</div>
@@ -1025,7 +1062,9 @@ export default function SessionPage() {
                       <span style={{ color: "#9aa0aa" }}>
                         {Math.floor(c.start_ms / 60000)}:{String(Math.floor((c.start_ms % 60000) / 1000)).padStart(2, "0")}
                       </span>
-                      <span style={{ fontWeight: 700 }}>{c.n}-punch burst</span>
+                      <span style={{ fontWeight: 700 }}>
+                        {notationNamed(c.notation) ? c.notation : `${c.n}-punch burst`}
+                      </span>
                       <span>{Math.round(c.avg_interval_ms)} ms gaps</span>
                     </div>
                   ))}

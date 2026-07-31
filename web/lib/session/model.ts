@@ -92,7 +92,20 @@ export function punchMix(log: StrikeLogItem[]): PunchMix {
   return mix;
 }
 
-export type ComboItem = { start_ms: number; n: number; avg_interval_ms: number };
+export type ComboItem = {
+  start_ms: number;
+  n: number;
+  avg_interval_ms: number;
+  /** Boxing notation from the core assembler, e.g. "1-1-2"; "?" marks
+   *  strikes whose shape was too ambiguous to name. */
+  notation?: string;
+};
+
+/** True when a combo's notation names at least one punch (worth showing
+ *  over the generic "n-punch burst"). */
+export function notationNamed(notation: string | undefined): boolean {
+  return notation != null && /\d/.test(notation);
+}
 
 export type RoundStat = {
   n: number; // 1-based round number

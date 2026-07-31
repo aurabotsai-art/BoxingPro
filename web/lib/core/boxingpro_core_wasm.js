@@ -149,9 +149,10 @@ export class SessionAnalyzer {
     }
     /**
      * Combos — bursts of ≥2 strikes with ≤600ms between apexes — as a JSON
-     * array of `{start_ms, n, avg_interval_ms}` (session-relative time).
-     * Pure cadence data via the core's assembler; punch classes stay
-     * unclassified until the trained classifier ships.
+     * array of `{start_ms, n, avg_interval_ms, notation}` (session-relative
+     * time). Strikes carry the same heuristic class as the strike card
+     * ("1-1-2"; ambiguous shapes render "?" — the assembler chains them
+     * honestly instead of dropping them).
      * @returns {string}
      */
     combos_json() {
