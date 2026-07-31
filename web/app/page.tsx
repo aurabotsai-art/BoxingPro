@@ -43,7 +43,9 @@ import {
   idbArchiveKeys,
   idbGetArchive,
   idbSaveArchive,
+  GOAL_KEY,
   loadDrillLog,
+  loadGoal,
   loadHistory,
   loadPb,
   ONBOARDED_KEY,
@@ -75,6 +77,23 @@ export default function SessionPage() {
     } catch { /* SSR/no window: stays false */ }
   }, []);
   const [roundWorkS, setRoundWorkS] = useState(ROUND_WORK_S);
+  const goalRef = useRef<number | null>(null);
+  const goalHitRef = useRef(false);
+  const [goal, setGoal] = useState<number | null>(null);
+  const [goalFlash, setGoalFlash] = useState(false);
+  useEffect(() => {
+    goalRef.current = loadGoal();
+    setGoal(goalRef.current);
+  }, []);
+  const onGoal = useCallback((g: number | null) => {
+    goalRef.current = g;
+    goalHitRef.current = false;
+    setGoal(g);
+    try {
+      if (g == null) localStorage.removeItem(GOAL_KEY);
+      else localStorage.setItem(GOAL_KEY, String(g));
+    } catch { /* private mode */ }
+  }, []);
   const onRoundLen = useCallback((secs: number) => {
     roundWorkSRef.current = secs;
     setRoundWorkS(secs);
@@ -348,6 +367,7 @@ export default function SessionPage() {
           applyStanceRef.current = (s) => analyzer.set_stance(s);
           sessionStart = performance.now();
           lastStrikes = 0;
+          goalHitRef.current = false;
           if (roundAnchorRef.current != null) roundAnchorRef.current = performance.now();
           setHud((h) => ({ ...h, strikes: 0, last: null, profileReady: false, elapsed: 0 }));
         };
@@ -534,6 +554,17 @@ export default function SessionPage() {
                 setCue(text);
                 if (text && soundOnRef.current) speak(text); // eyes-free coaching
                 setTimeout(() => setCue(null), CUE_SHOW_MS);
+              }
+            }
+            // Session goal: celebrate once when the target falls.
+            const goalNow = goalRef.current;
+            if (goalNow != null && !goalHitRef.current && count >= goalNow) {
+              goalHitRef.current = true;
+              setGoalFlash(true);
+              setTimeout(() => setGoalFlash(false), 3000);
+              if (soundOnRef.current) {
+                if (audioRef.current) bell(audioRef.current);
+                speak(`Goal hit. ${goalNow} strikes.`);
               }
             }
             lastStrikes = count;
@@ -747,6 +778,11 @@ export default function SessionPage() {
               </span>
             )}
           </div>
+          {goal != null && (
+            <div data-testid="goal-progress" style={{ fontSize: 13, color: hud.strikes >= goal ? "#7ee08a" : "#9aa0aa", fontWeight: 700 }}>
+              {hud.strikes >= goal ? "🎯 goal hit" : `goal ${hud.strikes} / ${goal}`}
+            </div>
+          )}
           {hud.elapsed > 15 && hud.strikes > 0 && (
             <div data-testid="rate" style={{ fontSize: 13, color: "#9aa0aa", fontWeight: 600 }}>
               {Math.round((hud.strikes / hud.elapsed) * 60)} / min
@@ -876,6 +912,29 @@ export default function SessionPage() {
                 }}
               >
                 {secs / 60}:00{secs === 120 ? " (amateur)" : " (pro)"}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "12px 0 8px" }}>SESSION GOAL</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {[null, 50, 100, 200].map((g) => (
+              <button
+                key={g ?? "off"}
+                onClick={() => onGoal(g)}
+                data-testid={`goal-${g ?? "off"}`}
+                style={{
+                  flex: 1,
+                  background: goal === g ? "#1d4f2add" : "#1a1c22",
+                  color: "#eee",
+                  border: `1px solid ${goal === g ? "#2f7a44" : "#2c313c"}`,
+                  borderRadius: 10,
+                  padding: "9px 0",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {g == null ? "off" : `${g} strikes`}
               </button>
             ))}
           </div>
@@ -1092,6 +1151,17 @@ export default function SessionPage() {
         </div>
       )}
 
+      {goalFlash && (
+        <div
+          data-testid="goal-flash"
+          style={{ position: "absolute", top: "28%", left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}
+        >
+          <span style={{ background: "#10241aee", border: "1px solid #20624a", color: "#7ee08a", borderRadius: 14, padding: "12px 22px", fontSize: 22, fontWeight: 900, letterSpacing: 0.5, boxShadow: "0 4px 24px #0008" }}>
+            🎯 GOAL HIT
+          </span>
+        </div>
+      )}
+
       {pbFlash != null && (
         <div
           data-testid="pb-flash"
@@ -1212,6 +1282,7 @@ export default function SessionPage() {
                 <>
                   {row("Duration", `${mins}:${String(secs).padStart(2, "0")}`)}
                   {row("Strikes", `${total} (L ${s.strikes_left} / R ${s.strikes_right})`)}
+                  {goal != null && row("Goal", total >= goal ? `🎯 hit (${total}/${goal})` : `${total} of ${goal}`)}
                   {row("Pace", s.strikes_per_min != null ? `${s.strikes_per_min.toFixed(1)} /min` : "—")}
                   {row("Avg hand speed", s.avg_peak_speed != null ? `${s.avg_peak_speed.toFixed(1)} m/s` : "—")}
                   {(s.avg_peak_speed_left != null || s.avg_peak_speed_right != null) &&

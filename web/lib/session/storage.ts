@@ -84,6 +84,18 @@ export async function idbGetArchive(at: number): Promise<string | null> {
   return rec?.archive ?? null;
 }
 
+export const GOAL_KEY = "boxingpro.goal.v1";
+
+/** Session strike goal (null = off). */
+export function loadGoal(): number | null {
+  try {
+    const v = Number(localStorage.getItem(GOAL_KEY));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 const DRILL_LOG_KEY = "boxingpro.drilllog.v1";
 
 /** One completed guided drill attempt (verdict from scorer.ts). */
