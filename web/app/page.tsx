@@ -393,6 +393,7 @@ export default function SessionPage() {
           const s = JSON.parse(analyzer.summary_json()) as Summary;
           s.at = Date.now();
           const log = JSON.parse(analyzer.strikes_json()) as StrikeLogItem[];
+          s.mix = punchMix(log); // persisted with history for vocabulary trends
           const combos = JSON.parse(analyzer.combos_json()) as ComboItem[];
           // Keypoint archive (SkeletonArchive v1) — the session's raw data,
           // downloadable for film study. Keypoints only, never video.
@@ -989,6 +990,16 @@ export default function SessionPage() {
                 <span>{week.minutes7d} min</span>
                 {week.streakDays >= 2 && <span style={{ color: "#ffd75e", fontWeight: 700 }}>🔥 {week.streakDays}-day streak</span>}
               </div>
+              {week.mix7d.jab + week.mix7d.cross + week.mix7d.hook + week.mix7d.uppercut > 0 && (
+                <div style={{ fontSize: 12, color: "#9aa0aa", marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
+                  mix: {[
+                    week.mix7d.jab > 0 ? `${week.mix7d.jab} jab` : null,
+                    week.mix7d.cross > 0 ? `${week.mix7d.cross} cross` : null,
+                    week.mix7d.hook > 0 ? `${week.mix7d.hook} hook` : null,
+                    week.mix7d.uppercut > 0 ? `${week.mix7d.uppercut} uppercut` : null,
+                  ].filter(Boolean).join(" · ")}
+                </div>
+              )}
             </>
           )}
           {(() => {

@@ -57,6 +57,20 @@ describe("weeklyStats", () => {
     const h = [summary(NOON), summary(NOON - 3_600_000), summary(NOON - DAY)];
     expect(weeklyStats(h, NOON).streakDays).toBe(2);
   });
+
+  it("sums the weekly punch mix; sessions without one contribute nothing", () => {
+    const withMix = {
+      ...summary(NOON),
+      mix: { jab: 10, cross: 4, hook: 2, uppercut: 1, other: 3 },
+    };
+    const older = {
+      ...summary(NOON - DAY),
+      mix: { jab: 5, cross: 0, hook: 1, uppercut: 0, other: 0 },
+    };
+    const legacy = summary(NOON - 2 * DAY); // pre-mix stored session
+    const w = weeklyStats([withMix, older, legacy], NOON);
+    expect(w.mix7d).toEqual({ jab: 15, cross: 4, hook: 3, uppercut: 1, other: 3 });
+  });
 });
 
 function strike(tMs: number, speed = 7, recovery: number | null = 300): StrikeLogItem {

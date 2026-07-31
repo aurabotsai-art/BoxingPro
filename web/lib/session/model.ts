@@ -68,6 +68,8 @@ export type Summary = {
   stance_oob_frac: number | null;
   /** Epoch ms; stamped when saved to history. */
   at: number;
+  /** Per-label strike counts (added v1.1; older stored sessions lack it). */
+  mix?: PunchMix;
 };
 
 export type StrikeLogItem = {
@@ -157,6 +159,9 @@ export type WeekStats = {
   minutes7d: number;
   /** Consecutive training days ending today (or yesterday if none today). */
   streakDays: number;
+  /** Summed named-punch counts over the week (sessions without a recorded
+   *  mix contribute nothing — never guessed retroactively). */
+  mix7d: PunchMix;
 };
 
 /** Rollups over stored session summaries. `now` injected for testability. */
@@ -172,11 +177,21 @@ export function weeklyStats(history: Summary[], now: number): WeekStats {
     streak++;
     cursor -= 86_400_000;
   }
+  const mix7d: PunchMix = { jab: 0, cross: 0, hook: 0, uppercut: 0, other: 0 };
+  for (const s of recent) {
+    if (!s.mix) continue;
+    mix7d.jab += s.mix.jab;
+    mix7d.cross += s.mix.cross;
+    mix7d.hook += s.mix.hook;
+    mix7d.uppercut += s.mix.uppercut;
+    mix7d.other += s.mix.other;
+  }
   return {
     sessions7d: recent.length,
     strikes7d: recent.reduce((a, s) => a + s.strikes_left + s.strikes_right, 0),
     minutes7d: Math.round(recent.reduce((a, s) => a + s.duration_ms, 0) / 60_000),
     streakDays: streak,
+    mix7d,
   };
 }
 
