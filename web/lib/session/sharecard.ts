@@ -2,7 +2,24 @@
  *  Web Share API with files on mobile (share sheet), falls back to a PNG
  *  download. Keypoint data stays out — the card is stats only. */
 
-import type { Summary } from "./model";
+import { punchMix } from "./model";
+import type { ComboItem, StrikeLogItem, Summary } from "./model";
+import { notationNamed } from "./model";
+
+/** Extra card content derived from the strike log/combos (all optional —
+ *  the card renders fine for stats-only history entries). */
+export type CardExtras = {
+  log?: StrikeLogItem[];
+  combos?: ComboItem[];
+};
+
+/** Longest combo with a nameable notation, else longest combo. */
+export function bestCombo(combos: ComboItem[]): ComboItem | null {
+  if (!combos.length) return null;
+  const named = combos.filter((c) => notationNamed(c.notation));
+  const pool = named.length ? named : combos;
+  return pool.reduce((a, b) => (b.n > a.n ? b : a));
+}
 
 function line(ctx: CanvasRenderingContext2D, label: string, value: string, y: number) {
   ctx.textAlign = "left";
@@ -15,7 +32,7 @@ function line(ctx: CanvasRenderingContext2D, label: string, value: string, y: nu
   ctx.fillText(value, 990, y);
 }
 
-export function drawSessionCard(s: Summary, pb: number | null): HTMLCanvasElement {
+export function drawSessionCard(s: Summary, pb: number | null, extras: CardExtras = {}): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = 1080;
   c.height = 1080;
@@ -59,8 +76,21 @@ export function drawSessionCard(s: Summary, pb: number | null): HTMLCanvasElemen
   if (s.max_peak_speed != null) rows.push(["Fastest", `${s.max_peak_speed.toFixed(1)} m/s`]);
   if (s.strikes_per_min != null) rows.push(["Pace", `${s.strikes_per_min.toFixed(1)} /min`]);
   if (s.guard_up_frac != null) rows.push(["Guard up", `${Math.round(s.guard_up_frac * 100)}%`]);
+  if (extras.log?.length) {
+    const mix = punchMix(extras.log);
+    if (mix.jab + mix.cross + mix.hook > 0) {
+      const parts = [
+        mix.jab > 0 ? `${mix.jab}J` : null,
+        mix.cross > 0 ? `${mix.cross}C` : null,
+        mix.hook > 0 ? `${mix.hook}H` : null,
+      ].filter(Boolean);
+      rows.push(["Punch mix", parts.join(" · ")]);
+    }
+  }
+  const top = extras.combos ? bestCombo(extras.combos) : null;
+  if (top && notationNamed(top.notation)) rows.push(["Best combo", top.notation as string]);
   if (pb != null) rows.push(["All-time best", `${pb.toFixed(1)} m/s`]);
-  for (const [label, value] of rows.slice(0, 6)) {
+  for (const [label, value] of rows.slice(0, 7)) {
     line(ctx, label, value, y);
     ctx.strokeStyle = "#22262e";
     ctx.beginPath();
@@ -77,8 +107,8 @@ export function drawSessionCard(s: Summary, pb: number | null): HTMLCanvasElemen
   return c;
 }
 
-export async function shareCard(s: Summary, pb: number | null): Promise<void> {
-  const canvas = drawSessionCard(s, pb);
+export async function shareCard(s: Summary, pb: number | null, extras: CardExtras = {}): Promise<void> {
+  const canvas = drawSessionCard(s, pb, extras);
   const blob: Blob = await new Promise((res, rej) =>
     canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/png"),
   );

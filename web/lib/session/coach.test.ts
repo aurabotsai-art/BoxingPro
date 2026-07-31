@@ -124,6 +124,21 @@ describe("coach ↔ content library", () => {
   });
 });
 
+describe("bestCombo", () => {
+  it("prefers the longest nameable combo over a longer unnamed one", async () => {
+    const { bestCombo } = await import("./sharecard");
+    const combos = [
+      { start_ms: 0, n: 4, avg_interval_ms: 300, notation: "?-?-?-?" },
+      { start_ms: 5000, n: 3, avg_interval_ms: 250, notation: "1-1-2" },
+      { start_ms: 9000, n: 2, avg_interval_ms: 200, notation: "1-2" },
+    ];
+    expect(bestCombo(combos)?.notation).toBe("1-1-2");
+    expect(bestCombo([])).toBeNull();
+    // All-unnamed pool: still returns the longest burst.
+    expect(bestCombo([combos[0]])?.n).toBe(4);
+  });
+});
+
 describe("notationNamed", () => {
   it("shows notation only when at least one punch is named", () => {
     expect(notationNamed("1-1-2")).toBe(true);

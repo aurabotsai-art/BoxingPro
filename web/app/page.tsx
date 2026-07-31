@@ -1201,7 +1201,7 @@ export default function SessionPage() {
               </div>
             )}
             <button
-              onClick={() => shareCard(summary.current, pb).catch(() => {})}
+              onClick={() => shareCard(summary.current, pb, { log: summary.log, combos: summary.combos }).catch(() => {})}
               data-testid="share-card"
               style={{ marginTop: 10, width: "100%", background: "#1a1c22", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "11px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
             >
