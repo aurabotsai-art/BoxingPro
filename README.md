@@ -4,7 +4,7 @@
 
 > **Status: Phase 0 in progress — live v1 in production at [boxing-pro.vercel.app](https://boxing-pro.vercel.app).** The planning suite in [`docs/`](docs/00-INDEX.md) governs all work.
 
-**What the live app does today** (all on-device, video never leaves the phone): real-time 3D strike detection with jitter-filtered metric world landmarks · per-punch speed (m/s), path shape, guard-recovery time · live coaching cues (slow guard return, pre-punch telegraph) · guard-state watch · round timer with bells · combo bursts · personal bests · session summaries (per-round, per-hand, rhythm, footwork, speed sparkline) · keypoint archive export (SkeletonArchive v1) + on-device history · installable PWA, fully offline after first load.
+**What the live app does today** (all on-device, video never leaves the phone): real-time 3D strike detection with jitter-filtered metric world landmarks · per-punch speed (m/s), guard-recovery time, and heuristic punch naming (jab/cross/hook/uppercut) · combos in boxing notation ("1-1-2") · live spoken + visual coaching cues (slow guard return, pre-punch telegraph) · guided drill sessions for all 16 library drills, with spoken combo/direction calls ("one one two", "slip left", "go/guard" intervals) · drill scorecards graded against written success criteria + per-drill mastery streaks (3 straight passes = ★) · a Today's-plan chip that picks tomorrow's drill from today's measured faults · session goals, personal bests, round timer with bells · summaries (per-round, per-hand, punch mix, rhythm, footwork, speed sparkline) + weekly stats and speed trends · share card · keypoint archive export (SkeletonArchive v1) + on-device history · screen wake lock, screen-reader live regions, installable PWA, fully offline after first load. Privacy & honesty policy: [/about](https://boxing-pro.vercel.app/about).
 
 ## Repository layout
 
@@ -12,7 +12,7 @@
 docs/        Planning suite (00-INDEX.md is the map) — binding on all work
 core/        Metrics Core: shared Rust biomechanics library (zero deps, golden tests)
 core-wasm/   Browser API over the core (wasm-bindgen); same numbers as CLI/server
-cli/         `boxingpro analyze | synth-jab` — SkeletonArchive in, SessionAnalysis out
+cli/         `boxingpro analyze | synth-jab | synth-hook | synth-uppercut`
 web/         Next.js PWA (the live app); auto-deploys to Vercel from main
 contracts/   Versioned JSON Schemas: SkeletonArchive, SessionAnalysis, CoachOutput
 content/     Coaching knowledge as data: fault taxonomy + drill library (YAML)
@@ -22,7 +22,7 @@ workers/     Deep-tier (Tier 2) worker skeleton
 supabase/    Database migrations (Postgres + RLS per docs/08)
 ```
 
-Verify everything: `cargo fmt --check --all && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace` (50+ tests), then `tools/pipeline_check.sh` for the full archive→analysis→coach contract chain.
+Verify everything: `cargo fmt --check --all && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace` (54 Rust tests), `cd web && npm test` (49 TS tests), `tools/pipeline_check.sh` for the full archive→analysis→coach contract chain, and `python3 tools/golden/run_golden.py` for the golden-clip regression (5 synthetic cases).
 
 ## Planning suite
 
