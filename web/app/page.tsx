@@ -33,6 +33,7 @@ import {
 import { notationNamed, parseDrillDuration, punchMix, weeklyStats } from "@/lib/session/model";
 import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary, WeekStats } from "@/lib/session/model";
 import { coachTip } from "@/lib/session/coach";
+import { CALL_PLANS, callWords, nextCall, nextGapMs, rng } from "@/lib/session/caller";
 import {
   IDB_KEEP,
   idbArchiveKeys,
@@ -84,15 +85,22 @@ export default function SessionPage() {
       roundAnchorRef.current = on ? null : performance.now();
       if (on) {
         drillRef.current = null; // manual stop also ends a guided drill
+        callerRef.current = null;
         setActiveDrill(null);
       }
       if (!on && soundOnRef.current && audioRef.current) bell(audioRef.current);
       return !on;
     });
   }, []);
+  const callerRef = useRef<{ rand: () => number; nextAt: number; prev: string | null } | null>(null);
+  const [call, setCall] = useState<string | null>(null);
   const onStartDrill = useCallback((d: Drill) => {
     const plan = parseDrillDuration(d.duration);
     if (!plan) return;
+    // Arm the combo caller for "App calls..." drills (first call ~3s in).
+    callerRef.current = CALL_PLANS[d.id]
+      ? { rand: rng(Date.now() >>> 0), nextAt: performance.now() + 3000, prev: null }
+      : null;
     drillRef.current = { id: d.id, name: d.name, rounds: plan.rounds };
     roundWorkSRef.current = plan.workS; // session-scoped override, not persisted
     setRoundWorkS(plan.workS);
@@ -510,6 +518,7 @@ export default function SessionPage() {
               if (d && round.n > d.rounds) {
                 roundAnchorRef.current = null;
                 drillRef.current = null;
+                callerRef.current = null;
                 setActiveDrill(null);
                 setRoundsOn(false);
                 round = null;
@@ -517,6 +526,18 @@ export default function SessionPage() {
                   if (audioRef.current) bell(audioRef.current);
                   speak(`${d.name} complete.`);
                 }
+              }
+              // Combo caller: during work phases, call the next combo —
+              // flashed on screen always, spoken when sound is on.
+              const caller = callerRef.current;
+              if (d && caller && round && round.phase === "work" && now >= caller.nextAt) {
+                const plan = CALL_PLANS[d.id];
+                const combo = nextCall(plan, caller.rand, caller.prev);
+                caller.prev = combo;
+                caller.nextAt = now + nextGapMs(plan, caller.rand);
+                setCall(combo);
+                if (soundOnRef.current) speak(callWords(combo));
+                setTimeout(() => setCall(null), 1400);
               }
               if (round && lastRoundPhase !== null && lastRoundPhase !== round.phase && soundOnRef.current && audioRef.current) {
                 bell(audioRef.current);
@@ -947,6 +968,17 @@ export default function SessionPage() {
               Let&apos;s go
             </button>
           </div>
+        </div>
+      )}
+
+      {call && (
+        <div
+          data-testid="call"
+          style={{ position: "absolute", top: "40%", left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}
+        >
+          <span style={{ background: "#10241aee", border: "1px solid #20624a", color: "#7ee08a", borderRadius: 16, padding: "14px 30px", fontSize: 44, fontWeight: 900, letterSpacing: 2, fontVariantNumeric: "tabular-nums", boxShadow: "0 4px 24px #0008" }}>
+            {call}
+          </span>
         </div>
       )}
 
