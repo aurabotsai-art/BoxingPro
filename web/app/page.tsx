@@ -323,6 +323,24 @@ export default function SessionPage() {
     let stop = false;
     let stream: MediaStream | null = null;
 
+    // Screen wake lock: a dimming phone kills a round mid-drill. Best
+    // effort — re-acquired whenever the tab returns to the foreground
+    // (the OS silently releases it on tab switch / screen off).
+    let wakeLock: { release: () => Promise<void> } | null = null;
+    type WakeLockNav = Navigator & {
+      wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> };
+    };
+    const acquireWakeLock = async () => {
+      try {
+        wakeLock = (await (navigator as WakeLockNav).wakeLock?.request("screen")) ?? null;
+      } catch { /* unsupported/denied/backgrounded: never fatal */ }
+    };
+    acquireWakeLock();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") acquireWakeLock();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     // Offline support: after first visit, models/wasm/pages come from cache.
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {
@@ -699,6 +717,8 @@ export default function SessionPage() {
     return () => {
       stop = true;
       stream?.getTracks().forEach((t) => t.stop());
+      document.removeEventListener("visibilitychange", onVisibility);
+      wakeLock?.release().catch(() => {});
     };
   }, []);
 
