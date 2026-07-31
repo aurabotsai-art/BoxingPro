@@ -65,6 +65,15 @@ export default function SessionPage() {
   const [soundOn, setSoundOn] = useState(false);
   const roundAnchorRef = useRef<number | null>(null); // perf.now() when rounds started
   const roundWorkSRef = useRef(ROUND_WORK_S);
+  const roundRestSRef = useRef(ROUND_REST_S);
+  // Test hook: ?fastdrill=1 shrinks drill rounds to seconds so the E2E
+  // suite can drive a complete drill (scorecard, streak) headlessly.
+  const fastDrillRef = useRef(false);
+  useEffect(() => {
+    try {
+      fastDrillRef.current = new URLSearchParams(window.location.search).has("fastdrill");
+    } catch { /* SSR/no window: stays false */ }
+  }, []);
   const [roundWorkS, setRoundWorkS] = useState(ROUND_WORK_S);
   const onRoundLen = useCallback((secs: number) => {
     roundWorkSRef.current = secs;
@@ -119,12 +128,16 @@ export default function SessionPage() {
   } | null>(null);
   const [call, setCall] = useState<string | null>(null);
   const onStartDrill = useCallback((d: Drill) => {
-    const plan = parseDrillDuration(d.duration);
+    let plan = parseDrillDuration(d.duration);
     if (!plan) return;
     // Arm the combo caller for "App calls..." drills (first call ~3s in).
     callerRef.current = CALL_PLANS[d.id]
       ? { rand: rng(Date.now() >>> 0), nextAt: performance.now() + 3000, prev: null, roundN: 0, firedIdx: -1 }
       : null;
+    if (fastDrillRef.current) {
+      plan = { rounds: Math.min(plan.rounds, 2), workS: 5 };
+      roundRestSRef.current = 2;
+    }
     drillRef.current = { id: d.id, name: d.name, rounds: plan.rounds, startedPerf: performance.now() };
     setScorecard(null);
     roundWorkSRef.current = plan.workS; // session-scoped override, not persisted
@@ -360,7 +373,7 @@ export default function SessionPage() {
           // the rounds anchor maps onto the strike log's session-relative t.
           const rounds =
             roundAnchorRef.current != null
-              ? bucketRounds(log, Math.max(0, roundAnchorRef.current - sessionStart), s.duration_ms, roundWorkSRef.current)
+              ? bucketRounds(log, Math.max(0, roundAnchorRef.current - sessionStart), s.duration_ms, roundWorkSRef.current, roundRestSRef.current)
               : [];
           const history = s.duration_ms > 5000 ? saveToHistory(s) : [s, ...loadHistory()];
           if (s.duration_ms > 5000) {
@@ -511,7 +524,7 @@ export default function SessionPage() {
               }
               // No coaching during rest: punches thrown then are cooldown.
               const anchor = roundAnchorRef.current;
-              const cycleS = roundWorkSRef.current + ROUND_REST_S;
+              const cycleS = roundWorkSRef.current + roundRestSRef.current;
               const inRest =
                 anchor != null && ((now - anchor) / 1000) % cycleS >= roundWorkSRef.current;
               const cueId = inRest ? "" : analyzer.last_strike_cue();
@@ -528,7 +541,7 @@ export default function SessionPage() {
             let round: Hud["round"] = null;
             if (roundAnchorRef.current != null) {
               const workS = roundWorkSRef.current;
-              const cycS = workS + ROUND_REST_S;
+              const cycS = workS + roundRestSRef.current;
               const rt = (now - roundAnchorRef.current) / 1000;
               const within = rt % cycS;
               const phase: "work" | "rest" = within < workS ? "work" : "rest";
