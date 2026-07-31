@@ -78,11 +78,12 @@ export function drawSessionCard(s: Summary, pb: number | null, extras: CardExtra
   if (s.guard_up_frac != null) rows.push(["Guard up", `${Math.round(s.guard_up_frac * 100)}%`]);
   if (extras.log?.length) {
     const mix = punchMix(extras.log);
-    if (mix.jab + mix.cross + mix.hook > 0) {
+    if (mix.jab + mix.cross + mix.hook + mix.uppercut > 0) {
       const parts = [
         mix.jab > 0 ? `${mix.jab}J` : null,
         mix.cross > 0 ? `${mix.cross}C` : null,
         mix.hook > 0 ? `${mix.hook}H` : null,
+        mix.uppercut > 0 ? `${mix.uppercut}U` : null,
       ].filter(Boolean);
       rows.push(["Punch mix", parts.join(" · ")]);
     }

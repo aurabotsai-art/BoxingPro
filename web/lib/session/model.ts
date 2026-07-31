@@ -79,14 +79,15 @@ export type StrikeLogItem = {
   label?: string | null;
 };
 
-export type PunchMix = { jab: number; cross: number; hook: number; other: number };
+export type PunchMix = { jab: number; cross: number; hook: number; uppercut: number; other: number };
 
 /** Count strikes per heuristic label. "other" = ambiguous-shape strikes the
  *  core refused to name (honesty band), so the mix always sums to log length. */
 export function punchMix(log: StrikeLogItem[]): PunchMix {
-  const mix: PunchMix = { jab: 0, cross: 0, hook: 0, other: 0 };
+  const mix: PunchMix = { jab: 0, cross: 0, hook: 0, uppercut: 0, other: 0 };
   for (const k of log) {
-    if (k.label === "jab" || k.label === "cross" || k.label === "hook") mix[k.label]++;
+    if (k.label === "jab" || k.label === "cross" || k.label === "hook" || k.label === "uppercut")
+      mix[k.label]++;
     else mix.other++;
   }
   return mix;

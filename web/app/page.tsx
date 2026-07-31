@@ -1187,12 +1187,13 @@ export default function SessionPage() {
                   {row("Fastest", s.max_peak_speed != null ? `${s.max_peak_speed.toFixed(1)} m/s` : "—")}
                   {(() => {
                     const mix = punchMix(summary.log);
-                    const named = mix.jab + mix.cross + mix.hook;
+                    const named = mix.jab + mix.cross + mix.hook + mix.uppercut;
                     if (named === 0) return null;
                     const parts = [
                       mix.jab > 0 ? `${mix.jab} jab` : null,
                       mix.cross > 0 ? `${mix.cross} cross` : null,
                       mix.hook > 0 ? `${mix.hook} hook` : null,
+                      mix.uppercut > 0 ? `${mix.uppercut} uppercut` : null,
                     ].filter(Boolean);
                     return row("Punch mix", parts.join(" · ") + (mix.other > 0 ? ` (+${mix.other} other)` : ""));
                   })()}

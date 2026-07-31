@@ -34,6 +34,33 @@ pub struct StrikeCandidate {
     pub peak_speed_mps: f64,
 }
 
+/// Onset→apex wrist displacement for a candidate, split into vertical rise
+/// (up positive, canonical y-up space) and horizontal travel (x-z plane).
+/// The apex is the frame of maximum distance from the onset position within
+/// the strike window — full extension — NOT the peak-speed frame, which
+/// lands early in the trajectory. The split is what separates an uppercut
+/// (rise-dominant) from straight punches and hooks (travel-dominant); None
+/// when the onset wrist (or every window frame) is unobserved.
+pub fn punch_displacement(seq: &Sequence, c: &StrikeCandidate) -> Option<(f64, f64)> {
+    let w = c.hand.wrist();
+    let a = seq.frames.get(c.onset_idx)?.get(w)?;
+    let mut best: Option<(f64, f64, f64)> = None; // (dist², rise, horiz)
+    for f in &seq.frames[c.onset_idx..=c.end_idx.min(seq.frames.len() - 1)] {
+        let Some(b) = f.get(w) else { continue };
+        let dz = match (b.z, a.z) {
+            (Some(bz), Some(az)) => bz - az,
+            _ => 0.0,
+        };
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let d2 = dx * dx + dy * dy + dz * dz;
+        if best.is_none_or(|(bd2, _, _)| d2 > bd2) {
+            best = Some((d2, dy, (dx * dx + dz * dz).sqrt()));
+        }
+    }
+    best.map(|(_, rise, horiz)| (rise, horiz))
+}
+
 #[derive(Debug, Clone)]
 pub struct DetectorConfig {
     /// Speed that opens a candidate. Per-user scaling comes from calibration

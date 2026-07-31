@@ -96,10 +96,11 @@ describe("punchMix", () => {
       { t_ms: 1, hand: "left", peak_speed: 6, guard_recovery_ms: null, label: "jab" },
       { t_ms: 2, hand: "right", peak_speed: 7, guard_recovery_ms: null, label: "cross" },
       { t_ms: 3, hand: "right", peak_speed: 7, guard_recovery_ms: null, label: "hook" },
-      { t_ms: 4, hand: "left", peak_speed: 5, guard_recovery_ms: null, label: null },
-      { t_ms: 5, hand: "left", peak_speed: 5, guard_recovery_ms: null }, // legacy item, no field
+      { t_ms: 4, hand: "left", peak_speed: 5, guard_recovery_ms: null, label: "uppercut" },
+      { t_ms: 5, hand: "left", peak_speed: 5, guard_recovery_ms: null, label: null },
+      { t_ms: 6, hand: "left", peak_speed: 5, guard_recovery_ms: null }, // legacy item, no field
     ];
-    expect(punchMix(log)).toEqual({ jab: 2, cross: 1, hook: 1, other: 2 });
+    expect(punchMix(log)).toEqual({ jab: 2, cross: 1, hook: 1, uppercut: 1, other: 2 });
   });
 });
 

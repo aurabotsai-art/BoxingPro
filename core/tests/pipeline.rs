@@ -185,3 +185,30 @@ fn slow_deliberate_movement_is_not_a_strike() {
         jab.expected_peak_speed_mps()
     );
 }
+
+#[test]
+fn uppercut_displacement_is_rise_dominant_and_jab_is_not() {
+    use boxingpro_core::events::{detect_strikes, punch_displacement, DetectorConfig, Hand};
+    use boxingpro_core::synthetic::{
+        jab_sequence, uppercut_sequence, SyntheticJab, SyntheticUppercut,
+    };
+
+    let up = uppercut_sequence(1.8, &SyntheticUppercut::default());
+    let cands = detect_strikes(&up, Hand::Left, &DetectorConfig::default());
+    assert_eq!(cands.len(), 1, "uppercut must register as one strike");
+    let (rise, horiz) = punch_displacement(&up, &cands[0]).expect("wrist observed");
+    assert!(rise > 0.10, "uppercut rise {rise}");
+    assert!(
+        rise > 1.2 * horiz,
+        "rise {rise} must dominate horiz {horiz}"
+    );
+
+    let jab = jab_sequence(1.8, &SyntheticJab::default());
+    let jc = detect_strikes(&jab, Hand::Left, &DetectorConfig::default());
+    assert_eq!(jc.len(), 1);
+    let (jrise, jhoriz) = punch_displacement(&jab, &jc[0]).expect("wrist observed");
+    assert!(
+        jrise.abs() < 1.2 * jhoriz.max(0.05),
+        "jab is travel-dominant: rise {jrise} horiz {jhoriz}"
+    );
+}

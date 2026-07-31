@@ -263,7 +263,11 @@ impl SessionAnalyzer {
             Some(s) if s <= 0.80 => "\"curved\"",
             _ => "null",
         };
-        let label = self.punch_label(hand, m.straightness);
+        let label = self.punch_label(
+            hand,
+            m.straightness,
+            boxingpro_core::events::punch_displacement(&self.seq_f, c),
+        );
         // Extension honesty gate: until the auto-profile has seen a full
         // punch, arm_length is a guard-distance artifact and extension_frac
         // reads absurd (500%+). No plausible human reach → no claim.
@@ -289,11 +293,28 @@ impl SessionAnalyzer {
     /// hand is a jab, from the rear hand a cross; a strongly curved path is
     /// a lead/rear hook by hand. The ambiguous straightness band (0.80–0.90)
     /// and uppercuts stay Unclassified rather than guessing (docs/03).
-    fn punch_class(&self, hand: Hand, straightness: Option<f64>) -> StrikeClass {
+    fn punch_class(
+        &self,
+        hand: Hand,
+        straightness: Option<f64>,
+        displacement: Option<(f64, f64)>,
+    ) -> StrikeClass {
         let lead = match self.stance {
             Stance::Orthodox => Hand::Left,
             Stance::Southpaw => Hand::Right,
         };
+        // Vertical dominance decides first: an uppercut's straightness can
+        // land anywhere (a rising quarter-arc measures ~0.9), so the
+        // rise/travel split — not path shape — is its signature.
+        if let Some((rise, horiz)) = displacement {
+            if rise >= 0.15 && rise >= 1.2 * horiz {
+                return if hand == lead {
+                    StrikeClass::LeadUppercut
+                } else {
+                    StrikeClass::RearUppercut
+                };
+            }
+        }
         match straightness {
             Some(s) if s >= 0.90 && hand == lead => StrikeClass::Jab,
             Some(s) if s >= 0.90 => StrikeClass::Cross,
@@ -305,11 +326,17 @@ impl SessionAnalyzer {
 
     /// UI-facing name for `punch_class` (hooks collapse to "hook" — the
     /// lead/rear split matters for notation, not the strike card).
-    fn punch_label(&self, hand: Hand, straightness: Option<f64>) -> &'static str {
-        match self.punch_class(hand, straightness) {
+    fn punch_label(
+        &self,
+        hand: Hand,
+        straightness: Option<f64>,
+        displacement: Option<(f64, f64)>,
+    ) -> &'static str {
+        match self.punch_class(hand, straightness, displacement) {
             StrikeClass::Jab => "\"jab\"",
             StrikeClass::Cross => "\"cross\"",
             StrikeClass::LeadHook | StrikeClass::RearHook => "\"hook\"",
+            StrikeClass::LeadUppercut | StrikeClass::RearUppercut => "\"uppercut\"",
             _ => "null",
         }
     }
@@ -380,7 +407,11 @@ impl SessionAnalyzer {
                     .as_ref()
                     .map(|p| strike_metrics(&self.seq_f, c, p, &MetricsConfig::default()));
                 let rec = m.as_ref().and_then(|m| m.guard_recovery_ms);
-                let label = self.punch_label(*h, m.as_ref().and_then(|m| m.straightness));
+                let label = self.punch_label(
+                    *h,
+                    m.as_ref().and_then(|m| m.straightness),
+                    boxingpro_core::events::punch_displacement(&self.seq_f, c),
+                );
                 format!(
                     "{{\"t_ms\":{:.0},\"hand\":\"{}\",\"peak_speed\":{:.2},\"guard_recovery_ms\":{},\"label\":{}}}",
                     self.seq_f.frames[c.peak_idx].t_ms - t0,
@@ -502,7 +533,11 @@ impl SessionAnalyzer {
                 });
                 StrikeRecord {
                     t_apex_ms: self.seq_f.frames[c.peak_idx].t_ms,
-                    class: self.punch_class(h, straightness),
+                    class: self.punch_class(
+                        h,
+                        straightness,
+                        boxingpro_core::events::punch_displacement(&self.seq_f, c),
+                    ),
                     metrics: StrikeMetrics {
                         peak_speed_mps: c.peak_speed_mps,
                         extension_frac: None,
@@ -918,6 +953,27 @@ mod tests {
             c.last_strike_json().contains("\"label\":\"hook\""),
             "{}",
             c.last_strike_json()
+        );
+    }
+
+    #[test]
+    fn rising_punch_reads_as_uppercut() {
+        use boxingpro_core::synthetic::{uppercut_sequence, SyntheticUppercut};
+        let up = SyntheticUppercut {
+            idle_ms: 1200.0, // clean guard window for the auto-profile
+            ..SyntheticUppercut::default()
+        };
+        let a = analyzer_from(&uppercut_sequence(1.8, &up));
+        assert_eq!(a.strike_count(), 1);
+        assert!(
+            a.last_strike_json().contains("\"label\":\"uppercut\""),
+            "{}",
+            a.last_strike_json()
+        );
+        assert!(
+            a.strikes_json().contains("\"label\":\"uppercut\""),
+            "{}",
+            a.strikes_json()
         );
     }
 

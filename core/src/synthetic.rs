@@ -205,3 +205,72 @@ pub fn jab_sequence(height_m: f64, p: &SyntheticJab) -> Sequence {
     }
     Sequence { frames }
 }
+
+pub struct SyntheticUppercut {
+    pub fps: f64,
+    /// Vertical rise of the punch (m) — the dominant axis.
+    pub rise_m: f64,
+    /// Small forward drift (m); real uppercuts travel up far more than out.
+    pub fwd_m: f64,
+    pub out_ms: f64,
+    pub back_ms: f64,
+    pub idle_ms: f64,
+}
+
+impl Default for SyntheticUppercut {
+    fn default() -> Self {
+        SyntheticUppercut {
+            fps: 60.0,
+            rise_m: 0.30,
+            fwd_m: 0.08,
+            out_ms: 150.0,
+            // Slow drop back to guard: keeps the return under the onset
+            // threshold so the punch reads as ONE strike (launches are
+            // explosive, retractions are not).
+            back_ms: 380.0,
+            idle_ms: 400.0,
+        }
+    }
+}
+
+/// Generate a sequence containing exactly one left-hand (lead) uppercut:
+/// a rising quarter-arc from guard — vertical displacement dominates the
+/// small forward drift, which is the signature the classifier keys on.
+pub fn uppercut_sequence(height_m: f64, p: &SyntheticUppercut) -> Sequence {
+    let prof = profile(height_m);
+    let dt = 1000.0 / p.fps;
+    let total = p.idle_ms + p.out_ms + p.back_ms + p.idle_ms;
+    let n = (total / dt).ceil() as usize + 1;
+    let guard = prof.guard_left;
+
+    let arc_point = |prog: f64| {
+        let q = core::f64::consts::FRAC_PI_2 * prog.clamp(0.0, 1.0);
+        [
+            guard[0] + p.fwd_m * (1.0 - q.cos()),
+            guard[1] + p.rise_m * q.sin(),
+        ]
+    };
+
+    let mut frames = Vec::with_capacity(n);
+    for i in 0..n {
+        let t = i as f64 * dt;
+        let mut f = standing_frame(t, height_m);
+        f.set(
+            Joint::RightWrist,
+            kp(prof.guard_right[0], prof.guard_right[1]),
+        );
+        let phase_t = t - p.idle_ms;
+        let w = if phase_t < 0.0 {
+            guard
+        } else if phase_t <= p.out_ms {
+            arc_point(ease(phase_t / p.out_ms))
+        } else if phase_t <= p.out_ms + p.back_ms {
+            arc_point(1.0 - ease((phase_t - p.out_ms) / p.back_ms))
+        } else {
+            guard
+        };
+        f.set(Joint::LeftWrist, kp(w[0], w[1]));
+        frames.push(f);
+    }
+    Sequence { frames }
+}
