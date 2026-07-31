@@ -103,6 +103,27 @@ describe("punchMix", () => {
   });
 });
 
+describe("coach ↔ content library", () => {
+  it("every drill the coach can prescribe exists in the generated library", async () => {
+    const { DRILLS } = await import("./drills.gen");
+    const ids = new Set(DRILLS.map((d) => d.id));
+    // Force each rule to fire and check its prescription is a real drill.
+    const tips = [
+      coachTip(summary({ avg_guard_recovery_ms: 700 }), strikes(10, 700)),
+      coachTip(summary({ guard_up_frac: 0.3 }), strikes(10, 300)),
+      coachTip(summary({ rhythm_predictability: 0.9 }), strikes(10, 300)),
+      coachTip(summary({ stance_oob_frac: 0.5 }), strikes(10, 300)),
+    ];
+    for (const tip of tips) {
+      expect(tip).not.toBeNull();
+      expect(ids.has(tip!.drillId), `${tip!.drillId} missing from drills.gen.ts`).toBe(true);
+      const drill = DRILLS.find((d) => d.id === tip!.drillId)!;
+      expect(drill.name).toBe(tip!.drill);
+      expect(drill.targets, `${drill.id} does not target ${tip!.fault}`).toContain(tip!.fault);
+    }
+  });
+});
+
 describe("notationNamed", () => {
   it("shows notation only when at least one punch is named", () => {
     expect(notationNamed("1-1-2")).toBe(true);

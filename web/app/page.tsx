@@ -11,7 +11,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { beep, bell } from "@/lib/session/audio";
+import { beep, bell, speak } from "@/lib/session/audio";
+import { DRILLS } from "@/lib/session/drills.gen";
 import { shareCard } from "@/lib/session/sharecard";
 import {
   BONES,
@@ -459,7 +460,9 @@ export default function SessionPage() {
               const cueId = inRest ? "" : analyzer.last_strike_cue();
               if (cueId && now - lastCueAt > CUE_GAP_MS) {
                 lastCueAt = now;
-                setCue(CUE_TEXT[cueId] ?? null);
+                const text = CUE_TEXT[cueId] ?? null;
+                setCue(text);
+                if (text && soundOnRef.current) speak(text); // eyes-free coaching
                 setTimeout(() => setCue(null), CUE_SHOW_MS);
               }
             }
@@ -843,6 +846,22 @@ export default function SessionPage() {
               </div>
             </>
           )}
+          <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700, margin: "12px 0 6px" }}>
+            DRILL LIBRARY ({DRILLS.length})
+          </div>
+          <div data-testid="drills" style={{ maxHeight: 180, overflowY: "auto" }}>
+            {DRILLS.map((d) => (
+              <details key={d.id} style={{ padding: "3px 0", fontSize: 13, color: "#c6ccd6" }}>
+                <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+                  {d.name} <span style={{ color: "#565c66", fontWeight: 400 }}>· {d.duration}</span>
+                </summary>
+                <div style={{ padding: "4px 0 6px 14px", color: "#9aa0aa", fontSize: 12, lineHeight: 1.45 }}>
+                  {d.protocol}
+                  {d.equipment !== "none" && <div style={{ marginTop: 3, color: "#7ec8e0" }}>needs: {d.equipment}</div>}
+                </div>
+              </details>
+            ))}
+          </div>
         </div>
       )}
 
@@ -935,6 +954,14 @@ export default function SessionPage() {
                     <div style={{ fontSize: 12, color: "#ffb877" }}>
                       Drill: <span style={{ fontWeight: 700 }}>{tip.drill}</span>
                     </div>
+                    {(() => {
+                      const d = DRILLS.find((x) => x.id === tip.drillId);
+                      return d ? (
+                        <div style={{ fontSize: 11, color: "#b09a8a", marginTop: 3, lineHeight: 1.4 }}>
+                          {d.duration} — {d.protocol}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 );
               if (summary.log.length >= 5)

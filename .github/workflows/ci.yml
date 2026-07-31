@@ -24,7 +24,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: pip install pyyaml  # strict YAML validity pass in the linter
       - run: python3 tools/lint_content.py
+      - name: Drill snapshot must match the content library
+        run: |
+          python3 tools/gen_drill_lib.py
+          git diff --exit-code web/lib/session/drills.gen.ts
 
   contracts:
     name: Contracts (JSON Schema validity)

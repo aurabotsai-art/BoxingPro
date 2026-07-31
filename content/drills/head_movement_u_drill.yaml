@@ -10,6 +10,6 @@ protocol: >
   App calls slip-left / slip-right / roll; head trajectory is graded for the
   U-shape (lateral + drop) versus straight-back retreat; COM must stay over
   the base polygon throughout.
-success_criterion: >70% of defensive responses lateral-dominant with COM in base
+success_criterion: ">70% of defensive responses lateral-dominant with COM in base"
 video_asset: TODO
 status: seed

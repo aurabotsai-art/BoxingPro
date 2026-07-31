@@ -90,8 +90,30 @@ def flow_map_drills(val: str) -> list[str]:
     return [d.strip() for d in m.group(1).split(",") if d.strip()] if m else []
 
 
+def yaml_validity_errors() -> list[str]:
+    """Strict-parse every content file with real YAML when PyYAML is present.
+
+    The simple parser above is deliberately lenient, which once let an
+    unquoted `key: >70%...` (a broken block scalar) through — any real YAML
+    consumer (gen_drill_lib.py, future tooling) then crashes. CI installs
+    PyYAML so this pass always runs there; locally it degrades to a note.
+    """
+    try:
+        import yaml
+    except ImportError:
+        print("note: PyYAML unavailable — strict YAML validity pass skipped", file=sys.stderr)
+        return []
+    errs = []
+    for p in sorted((ROOT / "content").rglob("*.yaml")):
+        try:
+            yaml.safe_load(p.read_text())
+        except Exception as e:  # noqa: BLE001 — any parse failure is a finding
+            errs.append(f"{p.relative_to(ROOT)}: invalid YAML — {str(e).splitlines()[0]}")
+    return errs
+
+
 def main() -> int:
-    errors: list[str] = []
+    errors: list[str] = yaml_validity_errors()
     faults: dict[str, dict] = {}
     drills: dict[str, dict] = {}
 
