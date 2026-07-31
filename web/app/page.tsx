@@ -1107,6 +1107,8 @@ export default function SessionPage() {
       {scorecard && !summary && (
         <div
           data-testid="scorecard"
+          role="dialog"
+          aria-label="drill scorecard"
           style={{ position: "absolute", inset: 0, background: "#0a0a0c99", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 5 }}
         >
           <div style={{ background: "#14161c", border: `1px solid ${scorecard.verdict === "pass" ? "#20624a" : scorecard.verdict === "work" ? "#7a4420" : "#262a33"}`, borderRadius: 18, padding: "22px 26px", width: "min(380px, 90vw)" }}>
@@ -1143,6 +1145,8 @@ export default function SessionPage() {
       {call && (
         <div
           data-testid="call"
+          role="status"
+          aria-live="assertive"
           style={{ position: "absolute", top: "40%", left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}
         >
           <span style={{ background: "#10241aee", border: "1px solid #20624a", color: "#7ee08a", borderRadius: 16, padding: "14px 30px", fontSize: 44, fontWeight: 900, letterSpacing: 2, fontVariantNumeric: "tabular-nums", boxShadow: "0 4px 24px #0008" }}>
@@ -1154,6 +1158,8 @@ export default function SessionPage() {
       {goalFlash && (
         <div
           data-testid="goal-flash"
+          role="status"
+          aria-live="polite"
           style={{ position: "absolute", top: "28%", left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}
         >
           <span style={{ background: "#10241aee", border: "1px solid #20624a", color: "#7ee08a", borderRadius: 14, padding: "12px 22px", fontSize: 22, fontWeight: 900, letterSpacing: 0.5, boxShadow: "0 4px 24px #0008" }}>
@@ -1165,6 +1171,8 @@ export default function SessionPage() {
       {pbFlash != null && (
         <div
           data-testid="pb-flash"
+          role="status"
+          aria-live="polite"
           style={{ position: "absolute", top: "32%", left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}
         >
           <span style={{ background: "#3d3007ee", border: "1px solid #c9a54c", color: "#ffe9a8", borderRadius: 14, padding: "12px 22px", fontSize: 22, fontWeight: 900, letterSpacing: 0.5, boxShadow: "0 4px 24px #0008" }}>
@@ -1176,6 +1184,8 @@ export default function SessionPage() {
       {cue && (
         <div
           data-testid="cue"
+          role="status"
+          aria-live="polite"
           style={{ position: "absolute", top: "22%", left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}
         >
           <span style={{ background: "#7a3a10ee", border: "1px solid #b25a20", color: "#ffe3cf", borderRadius: 14, padding: "12px 22px", fontSize: 20, fontWeight: 800, letterSpacing: 0.3, boxShadow: "0 4px 24px #0008" }}>
@@ -1229,6 +1239,8 @@ export default function SessionPage() {
       {summary && (
         <div
           data-testid="summary"
+          role="dialog"
+          aria-label="session summary"
           style={{ position: "absolute", inset: 0, background: "#0a0a0cd9", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
         >
           <div style={{ background: "#14161c", border: "1px solid #262a33", borderRadius: 18, padding: "22px 26px", width: "min(420px, 92vw)", maxHeight: "84vh", overflowY: "auto" }}>
@@ -1443,7 +1455,7 @@ export default function SessionPage() {
               </div>
             )}
             <button
-              onClick={() => shareCard(summary.current, pb, { log: summary.log, combos: summary.combos }).catch(() => {})}
+              onClick={() => shareCard(summary.current, pb, { log: summary.log, combos: summary.combos, goal }).catch(() => {})}
               data-testid="share-card"
               style={{ marginTop: 10, width: "100%", background: "#1a1c22", color: "#eee", border: "1px solid #2c313c", borderRadius: 12, padding: "11px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
             >

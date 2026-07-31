@@ -11,6 +11,8 @@ import { notationNamed } from "./model";
 export type CardExtras = {
   log?: StrikeLogItem[];
   combos?: ComboItem[];
+  /** Session strike goal, when one was set. */
+  goal?: number | null;
 };
 
 /** Longest combo with a nameable notation, else longest combo. */
@@ -90,6 +92,9 @@ export function drawSessionCard(s: Summary, pb: number | null, extras: CardExtra
   }
   const top = extras.combos ? bestCombo(extras.combos) : null;
   if (top && notationNamed(top.notation)) rows.push(["Best combo", top.notation as string]);
+  if (extras.goal != null) {
+    rows.push(["Goal", total >= extras.goal ? `hit (${total}/${extras.goal})` : `${total} of ${extras.goal}`]);
+  }
   if (pb != null) rows.push(["All-time best", `${pb.toFixed(1)} m/s`]);
   for (const [label, value] of rows.slice(0, 7)) {
     line(ctx, label, value, y);
