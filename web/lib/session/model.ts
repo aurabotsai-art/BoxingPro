@@ -24,6 +24,9 @@ export type LastStrike = {
   straightness: number | null;
   /** "straight" | "curved" | null — coarse path geometry, not punch class. */
   shape: string | null;
+  /** "jab" | "cross" | "hook" | null — stance+geometry heuristic (T2);
+   *  null when the path shape is ambiguous. */
+  label: string | null;
 };
 
 export type Hud = {
@@ -72,7 +75,22 @@ export type StrikeLogItem = {
   hand: string;
   peak_speed: number;
   guard_recovery_ms: number | null;
+  /** "jab" | "cross" | "hook" | null — see LastStrike.label. */
+  label?: string | null;
 };
+
+export type PunchMix = { jab: number; cross: number; hook: number; other: number };
+
+/** Count strikes per heuristic label. "other" = ambiguous-shape strikes the
+ *  core refused to name (honesty band), so the mix always sums to log length. */
+export function punchMix(log: StrikeLogItem[]): PunchMix {
+  const mix: PunchMix = { jab: 0, cross: 0, hook: 0, other: 0 };
+  for (const k of log) {
+    if (k.label === "jab" || k.label === "cross" || k.label === "hook") mix[k.label]++;
+    else mix.other++;
+  }
+  return mix;
+}
 
 export type ComboItem = { start_ms: number; n: number; avg_interval_ms: number };
 

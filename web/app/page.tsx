@@ -28,8 +28,9 @@ import {
   ROUND_REST_S,
   ROUND_WORK_S,
 } from "@/lib/session/model";
-import { weeklyStats } from "@/lib/session/model";
+import { punchMix, weeklyStats } from "@/lib/session/model";
 import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary, WeekStats } from "@/lib/session/model";
+import { coachTip } from "@/lib/session/coach";
 import {
   IDB_KEEP,
   idbArchiveKeys,
@@ -627,11 +628,13 @@ export default function SessionPage() {
         {hud.last && (
           <div data-testid="last" style={{ textAlign: "right", background: "#14161ccc", border: "1px solid #262a33", borderRadius: 14, padding: "10px 16px", backdropFilter: "blur(8px)" }}>
             <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#9aa0aa", fontWeight: 700 }}>
-              LAST — {hud.last.hand.toUpperCase()} HAND
-              {hud.last.shape && (
-                <span style={{ color: hud.last.shape === "straight" ? "#7ec8e0" : "#e0b87e", marginLeft: 6 }}>
-                  · {hud.last.shape.toUpperCase()}
+              LAST — {hud.last.hand.toUpperCase()}{" "}
+              {hud.last.label ? (
+                <span style={{ color: hud.last.label === "hook" ? "#e0b87e" : "#7ec8e0" }}>
+                  {hud.last.label.toUpperCase()}
                 </span>
+              ) : (
+                "HAND"
               )}
             </div>
             <div style={{ fontSize: 26, fontWeight: 800, color: "#61dafb" }}>
@@ -883,6 +886,32 @@ export default function SessionPage() {
           <div style={{ background: "#14161c", border: "1px solid #262a33", borderRadius: 18, padding: "22px 26px", width: "min(420px, 92vw)", maxHeight: "84vh", overflowY: "auto" }}>
             <div style={{ fontSize: 12, letterSpacing: 2, color: "#9aa0aa", fontWeight: 700, marginBottom: 12 }}>SESSION SUMMARY</div>
             {(() => {
+              // Deterministic coach card: worst measured fault → one drill
+              // (lib/session/coach.ts). Numbers measured, words templated.
+              const tip = coachTip(summary.current, summary.log);
+              if (tip)
+                return (
+                  <div data-testid="coach" style={{ background: "#241a10", border: "1px solid #7a4420", borderRadius: 12, padding: "12px 14px", marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#ffb877", fontWeight: 700, marginBottom: 4 }}>🥊 COACH — WORK ON THIS</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#ffe3cf" }}>{tip.headline}</div>
+                    <div style={{ fontSize: 13, color: "#d8c9bd", margin: "4px 0 6px" }}>{tip.fix}</div>
+                    <div style={{ fontSize: 12, color: "#ffb877" }}>
+                      Drill: <span style={{ fontWeight: 700 }}>{tip.drill}</span>
+                    </div>
+                  </div>
+                );
+              if (summary.log.length >= 5)
+                return (
+                  <div data-testid="coach" style={{ background: "#10241a", border: "1px solid #20624a", borderRadius: 12, padding: "12px 14px", marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#7ee08a", fontWeight: 700, marginBottom: 4 }}>🥊 COACH</div>
+                    <div style={{ fontSize: 13, color: "#cfe8d4" }}>
+                      Clean session — guard returned fast and nothing measurable to fix. Add volume or speed next time.
+                    </div>
+                  </div>
+                );
+              return null;
+            })()}
+            {(() => {
               const s = summary.current;
               const total = s.strikes_left + s.strikes_right;
               const mins = Math.floor(s.duration_ms / 60000);
@@ -905,6 +934,17 @@ export default function SessionPage() {
                       `${s.avg_peak_speed_left != null ? s.avg_peak_speed_left.toFixed(1) : "—"} / ${s.avg_peak_speed_right != null ? s.avg_peak_speed_right.toFixed(1) : "—"} m/s`,
                     )}
                   {row("Fastest", s.max_peak_speed != null ? `${s.max_peak_speed.toFixed(1)} m/s` : "—")}
+                  {(() => {
+                    const mix = punchMix(summary.log);
+                    const named = mix.jab + mix.cross + mix.hook;
+                    if (named === 0) return null;
+                    const parts = [
+                      mix.jab > 0 ? `${mix.jab} jab` : null,
+                      mix.cross > 0 ? `${mix.cross} cross` : null,
+                      mix.hook > 0 ? `${mix.hook} hook` : null,
+                    ].filter(Boolean);
+                    return row("Punch mix", parts.join(" · ") + (mix.other > 0 ? ` (+${mix.other} other)` : ""));
+                  })()}
                   {row("Avg guard return", s.avg_guard_recovery_ms != null ? `${Math.round(s.avg_guard_recovery_ms)} ms` : "—")}
                   {row("Guard up", s.guard_up_frac != null ? `${Math.round(s.guard_up_frac * 100)}% of the time` : "—")}
                   {s.bounce_cadence_hz != null &&
@@ -1005,6 +1045,7 @@ export default function SessionPage() {
                       </span>
                       <span style={{ fontWeight: 700, color: k.hand === "left" ? "#61dafb" : "#ffb86c" }}>
                         {k.hand === "left" ? "L" : "R"}
+                        {k.label ? ` ${k.label}` : ""}
                       </span>
                       <span>{k.peak_speed.toFixed(1)} m/s</span>
                       <span style={{ color: k.guard_recovery_ms != null && k.guard_recovery_ms > 550 ? "#ff8a5c" : "#7ee08a" }}>

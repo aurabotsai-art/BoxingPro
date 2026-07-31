@@ -261,6 +261,7 @@ impl SessionAnalyzer {
             Some(s) if s <= 0.80 => "\"curved\"",
             _ => "null",
         };
+        let label = self.punch_label(hand, m.straightness);
         // Extension honesty gate: until the auto-profile has seen a full
         // punch, arm_length is a guard-distance artifact and extension_frac
         // reads absurd (500%+). No plausible human reach → no claim.
@@ -270,14 +271,33 @@ impl SessionAnalyzer {
             None
         };
         format!(
-            "{{\"hand\":\"{}\",\"peak_speed\":{:.2},\"extension_frac\":{},\"guard_recovery_ms\":{},\"straightness\":{},\"shape\":{}}}",
+            "{{\"hand\":\"{}\",\"peak_speed\":{:.2},\"extension_frac\":{},\"guard_recovery_ms\":{},\"straightness\":{},\"shape\":{},\"label\":{}}}",
             if hand == Hand::Left { "left" } else { "right" },
             m.peak_speed_mps,
             ext.map_or("null".into(), |v| format!("{v:.3}")),
             m.guard_recovery_ms.map_or("null".into(), |v| format!("{v:.0}")),
             m.straightness.map_or("null".into(), |v| format!("{v:.3}")),
             shape,
+            label,
         )
+    }
+
+    /// Heuristic punch name from measured geometry + declared stance — a T2
+    /// readout, not a trained classifier: straight-line path from the lead
+    /// hand is a jab, from the rear hand a cross; a strongly curved path is
+    /// a hook. The ambiguous straightness band (0.80–0.90) and uppercuts
+    /// stay null rather than guessing (docs/03).
+    fn punch_label(&self, hand: Hand, straightness: Option<f64>) -> &'static str {
+        let lead = match self.stance {
+            Stance::Orthodox => Hand::Left,
+            Stance::Southpaw => Hand::Right,
+        };
+        match straightness {
+            Some(s) if s >= 0.90 && hand == lead => "\"jab\"",
+            Some(s) if s >= 0.90 => "\"cross\"",
+            Some(s) if s <= 0.80 => "\"hook\"",
+            _ => "null",
+        }
     }
 
     pub fn has_profile(&self) -> bool {
@@ -341,15 +361,19 @@ impl SessionAnalyzer {
         let items: Vec<String> = all
             .iter()
             .map(|(h, c)| {
-                let rec = self.profile.as_ref().and_then(|p| {
-                    strike_metrics(&self.seq_f, c, p, &MetricsConfig::default()).guard_recovery_ms
-                });
+                let m = self
+                    .profile
+                    .as_ref()
+                    .map(|p| strike_metrics(&self.seq_f, c, p, &MetricsConfig::default()));
+                let rec = m.as_ref().and_then(|m| m.guard_recovery_ms);
+                let label = self.punch_label(*h, m.as_ref().and_then(|m| m.straightness));
                 format!(
-                    "{{\"t_ms\":{:.0},\"hand\":\"{}\",\"peak_speed\":{:.2},\"guard_recovery_ms\":{}}}",
+                    "{{\"t_ms\":{:.0},\"hand\":\"{}\",\"peak_speed\":{:.2},\"guard_recovery_ms\":{},\"label\":{}}}",
                     self.seq_f.frames[c.peak_idx].t_ms - t0,
                     if *h == Hand::Left { "left" } else { "right" },
                     c.peak_speed_mps,
                     rec.map_or("null".to_string(), |v| format!("{v:.0}")),
+                    label,
                 )
             })
             .collect();
@@ -596,8 +620,7 @@ mod tests {
     use boxingpro_core::types::JOINT_COUNT;
 
     /// Feed a synthetic sequence through the browser-facing flat-array API.
-    fn analyzer_from(seq: &Sequence) -> SessionAnalyzer {
-        let mut a = SessionAnalyzer::new();
+    fn push_all(a: &mut SessionAnalyzer, seq: &Sequence) {
         let mut buf = vec![0.0; JOINT_COUNT * 4];
         for f in &seq.frames {
             for (i, j) in f.joints.iter().enumerate() {
@@ -612,6 +635,11 @@ mod tests {
             }
             a.push_frame(f.t_ms, &buf);
         }
+    }
+
+    fn analyzer_from(seq: &Sequence) -> SessionAnalyzer {
+        let mut a = SessionAnalyzer::new();
+        push_all(&mut a, seq);
         a
     }
 
@@ -829,6 +857,45 @@ mod tests {
             b.last_strike_json().contains("\"shape\":\"curved\""),
             "{}",
             b.last_strike_json()
+        );
+    }
+
+    #[test]
+    fn punch_labels_follow_stance_and_shape() {
+        // Straight left under orthodox = lead hand = jab.
+        let jab = SyntheticJab {
+            idle_ms: 1200.0,
+            ..SyntheticJab::default()
+        };
+        let seq = jab_sequence(1.8, &jab);
+        let a = analyzer_from(&seq);
+        assert!(
+            a.last_strike_json().contains("\"label\":\"jab\""),
+            "{}",
+            a.last_strike_json()
+        );
+        assert!(
+            a.strikes_json().contains("\"label\":\"jab\""),
+            "{}",
+            a.strikes_json()
+        );
+
+        // Same straight left under a declared southpaw = rear hand = cross.
+        let mut b = SessionAnalyzer::new();
+        b.set_stance("southpaw");
+        push_all(&mut b, &seq);
+        assert!(
+            b.last_strike_json().contains("\"label\":\"cross\""),
+            "{}",
+            b.last_strike_json()
+        );
+
+        // Curved arc = hook regardless of stance.
+        let c = analyzer_from(&arc_sequence());
+        assert!(
+            c.last_strike_json().contains("\"label\":\"hook\""),
+            "{}",
+            c.last_strike_json()
         );
     }
 
