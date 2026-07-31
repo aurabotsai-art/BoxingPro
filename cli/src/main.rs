@@ -293,6 +293,18 @@ fn synth_hook(fps: f64, height: f64) -> Value {
     archive_json(&seq, fps, json!({ "class": "lead_hook" }))
 }
 
+/// Emit a synthetic single-lead-uppercut SkeletonArchive (rising quarter-arc
+/// — the vertical-dominance class for classifier dry runs).
+fn synth_uppercut(fps: f64, height: f64) -> Value {
+    use boxingpro_core::synthetic::{uppercut_sequence, SyntheticUppercut};
+    let p = SyntheticUppercut {
+        fps,
+        ..SyntheticUppercut::default()
+    };
+    let seq = uppercut_sequence(height, &p);
+    archive_json(&seq, fps, json!({ "class": "lead_uppercut" }))
+}
+
 fn archive_json(seq: &boxingpro_core::types::Sequence, fps: f64, truth: Value) -> Value {
     let frames: Vec<Value> = seq
         .frames
@@ -336,19 +348,19 @@ fn main() {
                 std::process::exit(1);
             }
         },
-        Some(cmd @ ("synth-jab" | "synth-hook")) => {
+        Some(cmd @ ("synth-jab" | "synth-hook" | "synth-uppercut")) => {
             let fps = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(60.0);
             let height = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(1.8);
-            let v = if cmd == "synth-jab" {
-                synth_jab(fps, height)
-            } else {
-                synth_hook(fps, height)
+            let v = match cmd {
+                "synth-jab" => synth_jab(fps, height),
+                "synth-hook" => synth_hook(fps, height),
+                _ => synth_uppercut(fps, height),
             };
             println!("{}", serde_json::to_string(&v).unwrap());
         }
         _ => {
             eprintln!(
-                "usage: boxingpro analyze <skeleton_archive.json> | boxingpro synth-jab [fps] [height] | boxingpro synth-hook [fps] [height]"
+                "usage: boxingpro analyze <skeleton_archive.json> | boxingpro synth-jab [fps] [height] | boxingpro synth-hook [fps] [height] | boxingpro synth-uppercut [fps] [height]"
             );
             std::process::exit(2);
         }

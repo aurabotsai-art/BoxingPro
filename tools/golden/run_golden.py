@@ -29,6 +29,7 @@ CASES = [
     ("jab_30fps_170cm", ["synth-jab", "30", "1.7"]),
     ("hook_60fps_180cm", ["synth-hook", "60", "1.8"]),
     ("hook_120fps_190cm", ["synth-hook", "120", "1.9"]),
+    ("uppercut_60fps_180cm", ["synth-uppercut", "60", "1.8"]),
 ]
 
 

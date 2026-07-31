@@ -33,7 +33,7 @@ import {
 import { notationNamed, parseDrillDuration, punchMix, weeklyStats } from "@/lib/session/model";
 import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary, WeekStats } from "@/lib/session/model";
 import { coachTip } from "@/lib/session/coach";
-import { CALL_PLANS, callWords, nextCall, nextGapMs, rng } from "@/lib/session/caller";
+import { CALL_PLANS, callWords, nextCall, nextGapMs, nextPhaseCall, rng } from "@/lib/session/caller";
 import { MASTERY_STREAK, passStreak, scoreDrill } from "@/lib/session/scorer";
 import type { Scorecard } from "@/lib/session/scorer";
 import { suggestDrill } from "@/lib/session/plan";
@@ -110,14 +110,20 @@ export default function SessionPage() {
       return !on;
     });
   }, []);
-  const callerRef = useRef<{ rand: () => number; nextAt: number; prev: string | null } | null>(null);
+  const callerRef = useRef<{
+    rand: () => number;
+    nextAt: number;
+    prev: string | null;
+    roundN: number;
+    firedIdx: number;
+  } | null>(null);
   const [call, setCall] = useState<string | null>(null);
   const onStartDrill = useCallback((d: Drill) => {
     const plan = parseDrillDuration(d.duration);
     if (!plan) return;
     // Arm the combo caller for "App calls..." drills (first call ~3s in).
     callerRef.current = CALL_PLANS[d.id]
-      ? { rand: rng(Date.now() >>> 0), nextAt: performance.now() + 3000, prev: null }
+      ? { rand: rng(Date.now() >>> 0), nextAt: performance.now() + 3000, prev: null, roundN: 0, firedIdx: -1 }
       : null;
     drillRef.current = { id: d.id, name: d.name, rounds: plan.rounds, startedPerf: performance.now() };
     setScorecard(null);
@@ -562,14 +568,30 @@ export default function SessionPage() {
               // Combo caller: during work phases, call the next combo —
               // flashed on screen always, spoken when sound is on.
               const caller = callerRef.current;
-              if (d && caller && round && round.phase === "work" && now >= caller.nextAt) {
+              if (d && caller && round && round.phase === "work") {
                 const plan = CALL_PLANS[d.id];
-                const combo = nextCall(plan, caller.rand, caller.prev);
-                caller.prev = combo;
-                caller.nextAt = now + nextGapMs(plan, caller.rand);
-                setCall(combo);
-                if (soundOnRef.current) speak(callWords(combo));
-                setTimeout(() => setCall(null), 1400);
+                let due: string | null = null;
+                if (plan.phases) {
+                  // Structured sub-intervals: fire at fixed offsets per round.
+                  if (caller.roundN !== round.n) {
+                    caller.roundN = round.n;
+                    caller.firedIdx = -1;
+                  }
+                  const hit = nextPhaseCall(plan.phases, roundWorkSRef.current - round.remaining, caller.firedIdx);
+                  if (hit) {
+                    caller.firedIdx = hit.idx;
+                    due = hit.call;
+                  }
+                } else if (now >= caller.nextAt) {
+                  due = nextCall(plan, caller.rand, caller.prev);
+                  caller.prev = due;
+                  caller.nextAt = now + nextGapMs(plan, caller.rand);
+                }
+                if (due) {
+                  setCall(due);
+                  if (soundOnRef.current) speak(callWords(due));
+                  setTimeout(() => setCall(null), 1400);
+                }
               }
               if (round && lastRoundPhase !== null && lastRoundPhase !== round.phase && soundOnRef.current && audioRef.current) {
                 bell(audioRef.current);

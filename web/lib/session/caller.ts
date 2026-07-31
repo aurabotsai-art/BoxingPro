@@ -11,7 +11,23 @@ export type CallPlan = {
   /** Mean gap between calls; actual gaps jitter ±30% so rhythm can't be
    *  predicted (the point of a caller). */
   everyMs: number;
+  /** Fixed sub-interval calls at offsets within EACH work round (e.g.
+   *  conditioning: "go" at 0s, "guard" at 20s). When set, pool/everyMs are
+   *  ignored — structure, not randomness, is the drill. */
+  phases?: Array<{ atS: number; call: string }>;
 };
+
+/** Which phase call is due at `elapsedS` into a work round, given the last
+ *  fired index (-1 = none yet). Returns null when nothing new is due. */
+export function nextPhaseCall(
+  phases: Array<{ atS: number; call: string }>,
+  elapsedS: number,
+  firedIdx: number,
+): { idx: number; call: string } | null {
+  let due = -1;
+  for (let i = 0; i < phases.length; i++) if (phases[i].atS <= elapsedS) due = i;
+  return due > firedIdx ? { idx: due, call: phases[due].call } : null;
+}
 
 /** Drill id → call plan. Drills absent here run silent (timer-only). */
 export const CALL_PLANS: Record<string, CallPlan> = {
@@ -28,6 +44,15 @@ export const CALL_PLANS: Record<string, CallPlan> = {
   chin_tuck_rounds: { pool: ["check"], everyMs: 8000 },
   // "App calls slip-left / slip-right / roll" — defensive reactions.
   head_movement_u_drill: { pool: ["slip left", "slip right", "roll"], everyMs: 3500 },
+  // "6x60s (20s high output / 40s active guard)" — structured intervals.
+  conditioning_output_intervals: {
+    pool: [],
+    everyMs: 0,
+    phases: [
+      { atS: 0, call: "go" },
+      { atS: 20, call: "guard" },
+    ],
+  },
   // "App calls left/right movement bursts" — step-drag grading.
   lateral_step_drills: { pool: ["step left", "step right"], everyMs: 4000 },
   // "App calls single jabs at moderate tempo" — wall telegraph drill.

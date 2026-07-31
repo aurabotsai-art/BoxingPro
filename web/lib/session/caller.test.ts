@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CALL_PLANS, callWords, nextCall, nextGapMs, rng } from "./caller";
+import { CALL_PLANS, callWords, nextCall, nextGapMs, nextPhaseCall, rng } from "./caller";
 
 describe("combo caller", () => {
   it("has a plan for every 'App calls' drill in the content library", async () => {
@@ -44,6 +44,20 @@ describe("combo caller", () => {
       expect(gap).toBeGreaterThanOrEqual(plan.everyMs * 0.7);
       expect(gap).toBeLessThanOrEqual(plan.everyMs * 1.3);
     }
+  });
+
+  it("fires structured sub-interval calls once each, in order, per round", () => {
+    const phases = CALL_PLANS.conditioning_output_intervals.phases!;
+    // Round start: "go" due immediately.
+    expect(nextPhaseCall(phases, 0, -1)).toEqual({ idx: 0, call: "go" });
+    // 5s in, already fired idx 0: nothing new.
+    expect(nextPhaseCall(phases, 5, 0)).toBeNull();
+    // 20s in: "guard" due.
+    expect(nextPhaseCall(phases, 21, 0)).toEqual({ idx: 1, call: "guard" });
+    // Late join mid-round (35s, nothing fired): latest due call only.
+    expect(nextPhaseCall(phases, 35, -1)).toEqual({ idx: 1, call: "guard" });
+    // All fired: silent for the rest of the round.
+    expect(nextPhaseCall(phases, 59, 1)).toBeNull();
   });
 
   it("speaks digits as words and passes word calls through", () => {

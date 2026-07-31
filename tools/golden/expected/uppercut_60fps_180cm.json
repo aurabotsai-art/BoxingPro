@@ -1,0 +1,85 @@
+{
+ "aggregates": {
+  "avg_peak_hand_speed": {
+   "tier": "T1",
+   "unit": "m/s",
+   "value": 3.737404
+  },
+  "duration_s": {
+   "tier": "T0",
+   "unit": "s",
+   "value": 1.333333
+  },
+  "max_peak_hand_speed": {
+   "tier": "T1",
+   "unit": "m/s",
+   "value": 3.737404
+  },
+  "strike_count": {
+   "tier": "T0",
+   "unit": null,
+   "value": 1
+  },
+  "strikes_per_min": {
+   "tier": "T0",
+   "unit": null,
+   "value": 45.0
+  }
+ },
+ "capture": {
+  "device_model": "synthetic",
+  "fps_nominal": 60.0,
+  "height": 0,
+  "pose_model_id": "synthetic",
+  "width": 0
+ },
+ "counts": {
+  "duration_ms": 1333.333333,
+  "frames": 81,
+  "strikes": 1
+ },
+ "events": [
+  {
+   "class": "unclassified_strike",
+   "hand": "left",
+   "id": "ev-l-27",
+   "kind": "strike",
+   "metrics": {
+    "extension_frac": {
+     "tier": "T0",
+     "value": 0.980522
+    },
+    "guard_recovery_ms": {
+     "tier": "T0",
+     "value": 300.0
+    },
+    "peak_speed": {
+     "tier": "T1",
+     "value": 3.737404
+    },
+    "straightness": {
+     "tier": "T1",
+     "value": 0.982772
+    }
+   },
+   "t_apex_ms": 450.0,
+   "t_end_ms": 516.666667,
+   "t_start_ms": 433.333333
+  }
+ ],
+ "faults": [],
+ "pipeline_versions": {
+  "classifier": "none",
+  "fault_taxonomy": "seed-v0",
+  "metrics_core": "0.1.0"
+ },
+ "profile": "auto_uncalibrated",
+ "profile_derived": {
+  "arm_length": 0.387141,
+  "shoulder_width": 0.396,
+  "stance_guess": "southpaw"
+ },
+ "session_id": "00000000-0000-0000-0000-00000000beef",
+ "tier": "deep_lite",
+ "version": 1
+}
