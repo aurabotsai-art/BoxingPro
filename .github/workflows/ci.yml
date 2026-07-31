@@ -72,6 +72,9 @@ jobs:
       # wasm + pose model + core wasm into public/, then next build.
       - run: npm run vercel-build
         working-directory: web
+      - name: First-load JS budget (fails on bloat)
+        run: node tools/check_bundle_size.mjs
+        working-directory: web
 
   wasm-bindings:
     name: WASM bindings freshness (web/lib/core in sync with core-wasm)
