@@ -139,6 +139,17 @@ export const CUE_TEXT: Record<string, string> = {
 export const CUE_SHOW_MS = 2800;
 export const CUE_GAP_MS = 6000;
 
+/** Parse a drill duration like "3x2min", "3x90s", "4x1min", "6x60s (…)"
+ *  into a runnable round plan. Null when freeform (drill stays read-only). */
+export function parseDrillDuration(duration: string): { rounds: number; workS: number } | null {
+  const m = /^(\d+)x(\d+)(min|s)\b/.exec(duration.trim());
+  if (!m) return null;
+  const rounds = Number(m[1]);
+  const workS = m[3] === "min" ? Number(m[2]) * 60 : Number(m[2]);
+  if (rounds < 1 || rounds > 20 || workS < 20 || workS > 600) return null;
+  return { rounds, workS };
+}
+
 export type WeekStats = {
   sessions7d: number;
   strikes7d: number;

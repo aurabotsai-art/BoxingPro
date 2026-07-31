@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bucketRounds, weeklyStats } from "./model";
+import { bucketRounds, parseDrillDuration, weeklyStats } from "./model";
 import type { StrikeLogItem, Summary } from "./model";
 
 const DAY = 86_400_000;
@@ -96,5 +96,29 @@ describe("bucketRounds", () => {
     const rounds = bucketRounds(log, 0, 480_000);
     expect(rounds[0].avgSpeed).toBe(7);
     expect(rounds[1].avgSpeed).toBe(4);
+  });
+});
+
+describe("parseDrillDuration", () => {
+  it("parses every format the content library uses", () => {
+    expect(parseDrillDuration("3x2min")).toEqual({ rounds: 3, workS: 120 });
+    expect(parseDrillDuration("3x90s")).toEqual({ rounds: 3, workS: 90 });
+    expect(parseDrillDuration("4x1min")).toEqual({ rounds: 4, workS: 60 });
+    expect(parseDrillDuration("6x60s (20s high output / 40s active guard)")).toEqual({
+      rounds: 6,
+      workS: 60,
+    });
+  });
+
+  it("rejects freeform and absurd plans", () => {
+    expect(parseDrillDuration("until sharp")).toBeNull();
+    expect(parseDrillDuration("99x2min")).toBeNull(); // >20 rounds
+    expect(parseDrillDuration("3x5s")).toBeNull(); // <20s work
+  });
+
+  it("every startable library drill parses; freeform ones are read-only", async () => {
+    const { DRILLS } = await import("./drills.gen");
+    const startable = DRILLS.filter((d) => parseDrillDuration(d.duration) != null);
+    expect(startable.length).toBe(DRILLS.length); // all current durations parse
   });
 });

@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { beep, bell, speak } from "@/lib/session/audio";
 import { DRILLS } from "@/lib/session/drills.gen";
+import type { Drill } from "@/lib/session/drills.gen";
 import { shareCard } from "@/lib/session/sharecard";
 import {
   BONES,
@@ -29,7 +30,7 @@ import {
   ROUND_REST_S,
   ROUND_WORK_S,
 } from "@/lib/session/model";
-import { notationNamed, punchMix, weeklyStats } from "@/lib/session/model";
+import { notationNamed, parseDrillDuration, punchMix, weeklyStats } from "@/lib/session/model";
 import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary, WeekStats } from "@/lib/session/model";
 import { coachTip } from "@/lib/session/coach";
 import {
@@ -74,12 +75,35 @@ export default function SessionPage() {
     } catch { /* private mode */ }
   }, []);
   const [roundsOn, setRoundsOn] = useState(false);
+  // Guided drill session: round plan comes from the drill's protocol; the
+  // HUD loop auto-stops rounds when the planned count completes.
+  const drillRef = useRef<{ id: string; name: string; rounds: number } | null>(null);
+  const [activeDrill, setActiveDrill] = useState<string | null>(null);
   const onRounds = useCallback(() => {
     setRoundsOn((on) => {
       roundAnchorRef.current = on ? null : performance.now();
+      if (on) {
+        drillRef.current = null; // manual stop also ends a guided drill
+        setActiveDrill(null);
+      }
       if (!on && soundOnRef.current && audioRef.current) bell(audioRef.current);
       return !on;
     });
+  }, []);
+  const onStartDrill = useCallback((d: Drill) => {
+    const plan = parseDrillDuration(d.duration);
+    if (!plan) return;
+    drillRef.current = { id: d.id, name: d.name, rounds: plan.rounds };
+    roundWorkSRef.current = plan.workS; // session-scoped override, not persisted
+    setRoundWorkS(plan.workS);
+    roundAnchorRef.current = performance.now();
+    setActiveDrill(d.name);
+    setRoundsOn(true);
+    setShowSettings(false);
+    if (soundOnRef.current) {
+      if (audioRef.current) bell(audioRef.current);
+      speak(`${d.name}. ${plan.rounds} rounds. ${d.protocol.split(". ")[0]}.`);
+    }
   }, []);
   const [hud, setHud] = useState<Hud>({
     status: "starting…",
@@ -480,10 +504,24 @@ export default function SessionPage() {
                 phase,
                 remaining: phase === "work" ? workS - within : cycS - within,
               };
-              if (lastRoundPhase !== null && lastRoundPhase !== phase && soundOnRef.current && audioRef.current) {
+              // Guided drill: planned round count done → stop the round
+              // clock (session keeps recording; boxer decides what's next).
+              const d = drillRef.current;
+              if (d && round.n > d.rounds) {
+                roundAnchorRef.current = null;
+                drillRef.current = null;
+                setActiveDrill(null);
+                setRoundsOn(false);
+                round = null;
+                if (soundOnRef.current) {
+                  if (audioRef.current) bell(audioRef.current);
+                  speak(`${d.name} complete.`);
+                }
+              }
+              if (round && lastRoundPhase !== null && lastRoundPhase !== round.phase && soundOnRef.current && audioRef.current) {
                 bell(audioRef.current);
               }
-              lastRoundPhase = phase;
+              lastRoundPhase = round ? round.phase : null;
             } else {
               lastRoundPhase = null;
             }
@@ -586,6 +624,11 @@ export default function SessionPage() {
           )}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          {activeDrill && (
+            <span data-testid="drill-pill" style={{ ...pill("#16341fdd"), color: "#7ee08a", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              🥊 {activeDrill}
+            </span>
+          )}
           <span data-testid="pose" style={pill(hud.poseDetected ? "#16341fdd" : "#3a1a1add")}>
             {hud.poseDetected ? "tracking you" : "step into frame"}
           </span>
@@ -858,6 +901,15 @@ export default function SessionPage() {
                 <div style={{ padding: "4px 0 6px 14px", color: "#9aa0aa", fontSize: 12, lineHeight: 1.45 }}>
                   {d.protocol}
                   {d.equipment !== "none" && <div style={{ marginTop: 3, color: "#7ec8e0" }}>needs: {d.equipment}</div>}
+                  {parseDrillDuration(d.duration) && (
+                    <button
+                      onClick={() => onStartDrill(d)}
+                      data-testid={`drill-start-${d.id}`}
+                      style={{ marginTop: 6, background: "#16341f", color: "#7ee08a", border: "1px solid #20624a", borderRadius: 9, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      ▶ Start drill ({d.duration.split(" ")[0]})
+                    </button>
+                  )}
                 </div>
               </details>
             ))}
