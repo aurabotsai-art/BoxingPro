@@ -15,7 +15,7 @@ describe("combo caller", () => {
   it("pools contain only boxing notation or plain word calls", () => {
     for (const [id, plan] of Object.entries(CALL_PLANS)) {
       for (const c of plan.pool) {
-        expect(c, `${id}: bad call '${c}'`).toMatch(/^([1-6](-[1-6])*|[a-z]+)$/);
+        expect(c, `${id}: bad call '${c}'`).toMatch(/^([1-6](-[1-6])*|[a-z]+( [a-z]+)*)$/);
       }
     }
   });

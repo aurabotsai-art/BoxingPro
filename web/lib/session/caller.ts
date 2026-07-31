@@ -26,6 +26,21 @@ export const CALL_PLANS: Record<string, CallPlan> = {
   },
   // "App calls 'check' at random intervals; user resets posture."
   chin_tuck_rounds: { pool: ["check"], everyMs: 8000 },
+  // "App calls slip-left / slip-right / roll" — defensive reactions.
+  head_movement_u_drill: { pool: ["slip left", "slip right", "roll"], everyMs: 3500 },
+  // "App calls left/right movement bursts" — step-drag grading.
+  lateral_step_drills: { pool: ["step left", "step right"], everyMs: 4000 },
+  // "App calls single jabs at moderate tempo" — wall telegraph drill.
+  no_windup_wall_jabs: { pool: ["1"], everyMs: 3000 },
+  // "App calls jabs" against the virtual range marker.
+  range_marker_jabs: { pool: ["1"], everyMs: 3500 },
+  // "App calls step directions at building tempo."
+  stance_reset_steps: {
+    pool: ["step forward", "step back", "step left", "step right", "pivot"],
+    everyMs: 4000,
+  },
+  // "App calls 'step-jab' reps" — foot lands as fist lands.
+  step_jab_sync: { pool: ["step jab"], everyMs: 3500 },
 };
 
 /** mulberry32 — tiny deterministic PRNG; good enough for call shuffling. */
