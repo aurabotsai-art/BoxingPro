@@ -35,9 +35,10 @@ export const CALL_PLANS: Record<string, CallPlan> = {
   mirror_return_high: { pool: ["1", "2", "1-1", "1-2"], everyMs: 4000 },
   // "Punish the lazy return": singles/doubles, return graded.
   prompt_double_return: { pool: ["1", "1-1", "2", "1-2"], everyMs: 4000 },
-  // "Random combination calls."
+  // "Random combination calls." Full basic vocabulary incl. uppercuts
+  // (5/6) now that the classifier can read them back.
   prompt_random_combos: {
-    pool: ["1-2", "1-1-2", "1-2-3", "3-2", "1-2-1", "2-3-2", "1-4", "1-2-3-2"],
+    pool: ["1-2", "1-1-2", "1-2-3", "3-2", "1-2-1", "2-3-2", "1-4", "1-2-3-2", "1-2-5", "6-3"],
     everyMs: 5000,
   },
   // "App calls 'check' at random intervals; user resets posture."
