@@ -1068,6 +1068,12 @@ export default function SessionPage() {
               </details>
             ))}
           </div>
+          <a
+            href="/about"
+            style={{ display: "block", marginTop: 14, textAlign: "center", color: "#565c66", fontSize: 12, textDecoration: "none" }}
+          >
+            about & privacy — video never leaves your phone
+          </a>
         </div>
       )}
 
