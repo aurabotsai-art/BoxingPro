@@ -36,6 +36,8 @@ import { coachTip } from "@/lib/session/coach";
 import { CALL_PLANS, callWords, nextCall, nextGapMs, rng } from "@/lib/session/caller";
 import { MASTERY_STREAK, passStreak, scoreDrill } from "@/lib/session/scorer";
 import type { Scorecard } from "@/lib/session/scorer";
+import { suggestDrill } from "@/lib/session/plan";
+import type { PlanSuggestion } from "@/lib/session/plan";
 import {
   IDB_KEEP,
   idbArchiveKeys,
@@ -88,6 +90,14 @@ export default function SessionPage() {
   const [scorecard, setScorecard] = useState<(Scorecard & { name: string }) | null>(null);
   const [drillLog, setDrillLog] = useState<DrillResult[]>([]);
   useEffect(() => setDrillLog(loadDrillLog()), []);
+  // Today's plan: one suggested drill on open; dismissed for this visit only.
+  const [plan, setPlan] = useState<(PlanSuggestion & { name: string }) | null>(null);
+  useEffect(() => {
+    const s = suggestDrill(loadHistory(), loadDrillLog(), DRILLS.map((d) => d.id));
+    if (!s) return;
+    const d = DRILLS.find((x) => x.id === s.drillId);
+    if (d && parseDrillDuration(d.duration)) setPlan({ ...s, name: d.name });
+  }, []);
   const onRounds = useCallback(() => {
     setRoundsOn((on) => {
       roundAnchorRef.current = on ? null : performance.now();
@@ -1074,6 +1084,34 @@ export default function SessionPage() {
           <span style={{ background: "#4a2410dd", border: "1px solid #7a4420", color: "#ffd9b8", borderRadius: 10, padding: "6px 14px", fontSize: 12, fontWeight: 700 }}>
             ⚠ low tracking quality — add light or step back; speeds may under-read
           </span>
+        </div>
+      )}
+
+      {plan && !roundsOn && !summary && !scorecard && !showOnboarding && (
+        <div data-testid="plan-chip" style={{ position: "absolute", bottom: 128, left: 0, right: 0, display: "flex", justifyContent: "center", padding: "0 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#14161cee", border: "1px solid #2c313c", borderRadius: 14, padding: "10px 14px", maxWidth: 420 }}>
+            <button
+              onClick={() => {
+                const d = DRILLS.find((x) => x.id === plan.drillId);
+                setPlan(null);
+                if (d) onStartDrill(d);
+              }}
+              data-testid="plan-start"
+              style={{ background: "none", border: "none", color: "#eee", cursor: "pointer", textAlign: "left", padding: 0 }}
+            >
+              <div style={{ fontSize: 11, letterSpacing: 1.5, color: "#7ee08a", fontWeight: 700 }}>🎯 TODAY&apos;S PLAN — TAP TO START</div>
+              <div style={{ fontSize: 14, fontWeight: 800 }}>{plan.name}</div>
+              <div style={{ fontSize: 12, color: "#9aa0aa" }}>{plan.reason}</div>
+            </button>
+            <button
+              onClick={() => setPlan(null)}
+              data-testid="plan-dismiss"
+              aria-label="dismiss plan"
+              style={{ background: "none", border: "none", color: "#565c66", cursor: "pointer", fontSize: 16, padding: "0 2px" }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
