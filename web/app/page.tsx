@@ -34,22 +34,25 @@ import { notationNamed, parseDrillDuration, punchMix, weeklyStats } from "@/lib/
 import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary, WeekStats } from "@/lib/session/model";
 import { coachTip } from "@/lib/session/coach";
 import { CALL_PLANS, callWords, nextCall, nextGapMs, rng } from "@/lib/session/caller";
-import { scoreDrill } from "@/lib/session/scorer";
+import { MASTERY_STREAK, passStreak, scoreDrill } from "@/lib/session/scorer";
 import type { Scorecard } from "@/lib/session/scorer";
 import {
   IDB_KEEP,
   idbArchiveKeys,
   idbGetArchive,
   idbSaveArchive,
+  loadDrillLog,
   loadHistory,
   loadPb,
   ONBOARDED_KEY,
   PB_KEY,
+  saveDrillResult,
   saveToHistory,
   ROUNDLEN_KEY,
   SOUND_KEY,
   STANCE_KEY,
 } from "@/lib/session/storage";
+import type { DrillResult } from "@/lib/session/storage";
 
 export default function SessionPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -83,6 +86,8 @@ export default function SessionPage() {
   const drillRef = useRef<{ id: string; name: string; rounds: number; startedPerf: number } | null>(null);
   const [activeDrill, setActiveDrill] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<(Scorecard & { name: string }) | null>(null);
+  const [drillLog, setDrillLog] = useState<DrillResult[]>([]);
+  useEffect(() => setDrillLog(loadDrillLog()), []);
   const onRounds = useCallback(() => {
     setRoundsOn((on) => {
       roundAnchorRef.current = on ? null : performance.now();
@@ -529,11 +534,12 @@ export default function SessionPage() {
                 // Scorecard: grade only strikes thrown inside the drill
                 // window against the drill's measurable success criterion.
                 const windowStart = d.startedPerf - sessionStart;
-                const drillLog = (JSON.parse(analyzer.strikes_json()) as StrikeLogItem[]).filter(
+                const windowLog = (JSON.parse(analyzer.strikes_json()) as StrikeLogItem[]).filter(
                   (k) => k.t_ms >= windowStart,
                 );
-                const sc = scoreDrill(d.id, drillLog);
+                const sc = scoreDrill(d.id, windowLog);
                 setScorecard({ ...sc, name: d.name });
+                setDrillLog(saveDrillResult({ drillId: d.id, at: Date.now(), verdict: sc.verdict }));
                 if (soundOnRef.current) {
                   if (audioRef.current) bell(audioRef.current);
                   speak(
@@ -934,6 +940,13 @@ export default function SessionPage() {
               <details key={d.id} style={{ padding: "3px 0", fontSize: 13, color: "#c6ccd6" }}>
                 <summary style={{ cursor: "pointer", fontWeight: 700 }}>
                   {d.name} <span style={{ color: "#565c66", fontWeight: 400 }}>· {d.duration}</span>
+                  {(() => {
+                    const streak = passStreak(drillLog, d.id);
+                    if (streak >= MASTERY_STREAK)
+                      return <span style={{ color: "#ffd75e", marginLeft: 6 }}>★ mastered</span>;
+                    if (streak > 0) return <span style={{ color: "#7ee08a", marginLeft: 6 }}>✓×{streak}</span>;
+                    return null;
+                  })()}
                 </summary>
                 <div style={{ padding: "4px 0 6px 14px", color: "#9aa0aa", fontSize: 12, lineHeight: 1.45 }}>
                   {d.protocol}
@@ -997,6 +1010,16 @@ export default function SessionPage() {
             <div style={{ fontSize: 20, fontWeight: 800, margin: "6px 0 2px" }}>{scorecard.name}</div>
             {scorecard.verdict === "pass" && <div style={{ color: "#7ee08a", fontWeight: 800, fontSize: 15 }}>✓ CRITERION MET</div>}
             {scorecard.verdict === "work" && <div style={{ color: "#ffb877", fontWeight: 800, fontSize: 15 }}>NEEDS WORK</div>}
+            {(scorecard.verdict === "pass" || scorecard.verdict === "work") && (() => {
+              const streak = passStreak(drillLog, scorecard.drillId);
+              return (
+                <div style={{ fontSize: 12, color: streak >= MASTERY_STREAK ? "#ffd75e" : "#9aa0aa", marginTop: 2, fontWeight: 700 }}>
+                  {streak >= MASTERY_STREAK
+                    ? `★ MASTERED — ${streak} consecutive passing sessions`
+                    : `Streak: ${streak}/${MASTERY_STREAK} consecutive passes`}
+                </div>
+              );
+            })()}
             <div style={{ marginTop: 8 }}>
               {scorecard.lines.map((l, i) => (
                 <div key={i} style={{ fontSize: 13, color: "#c6ccd6", padding: "3px 0" }}>{l}</div>

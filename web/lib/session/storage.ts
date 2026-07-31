@@ -84,6 +84,31 @@ export async function idbGetArchive(at: number): Promise<string | null> {
   return rec?.archive ?? null;
 }
 
+const DRILL_LOG_KEY = "boxingpro.drilllog.v1";
+
+/** One completed guided drill attempt (verdict from scorer.ts). */
+export type DrillResult = {
+  drillId: string;
+  at: number;
+  verdict: "pass" | "work" | "info" | null;
+};
+
+export function loadDrillLog(): DrillResult[] {
+  try {
+    return JSON.parse(localStorage.getItem(DRILL_LOG_KEY) ?? "[]") as DrillResult[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveDrillResult(r: DrillResult): DrillResult[] {
+  const all = [r, ...loadDrillLog()].slice(0, 200);
+  try {
+    localStorage.setItem(DRILL_LOG_KEY, JSON.stringify(all));
+  } catch { /* quota/private mode: drill log is best-effort */ }
+  return all;
+}
+
 export function loadPb(): number | null {
   try {
     const v = Number(localStorage.getItem(PB_KEY));

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cadenceCV, MIN_SAMPLES, p75, scoreDrill } from "./scorer";
+import { cadenceCV, MIN_SAMPLES, p75, passStreak, scoreDrill } from "./scorer";
 import type { StrikeLogItem } from "./model";
 
 function strikes(recoveries: Array<number | null>, gapMs = 1000): StrikeLogItem[] {
@@ -58,6 +58,25 @@ describe("scoreDrill — random combos", () => {
     ) as number;
     expect(regular).toBeLessThan(0.01);
     expect(irregular).toBeGreaterThan(0.5);
+  });
+});
+
+describe("passStreak", () => {
+  const log = (entries: Array<[string, "pass" | "work" | "info" | null]>) =>
+    entries.map(([drillId, verdict]) => ({ drillId, verdict }));
+
+  it("counts consecutive passes from the most recent attempt (log newest-first)", () => {
+    expect(passStreak(log([["a", "pass"], ["a", "pass"], ["a", "work"], ["a", "pass"]]), "a")).toBe(2);
+  });
+
+  it("breaks on 'work' and treats ungraded attempts as neutral", () => {
+    expect(passStreak(log([["a", "pass"], ["a", null], ["a", "pass"], ["a", "info"], ["a", "pass"]]), "a")).toBe(3);
+    expect(passStreak(log([["a", "work"], ["a", "pass"]]), "a")).toBe(0);
+  });
+
+  it("only counts the requested drill", () => {
+    expect(passStreak(log([["a", "pass"], ["b", "work"], ["a", "pass"]]), "a")).toBe(2);
+    expect(passStreak(log([["a", "pass"]]), "b")).toBe(0);
   });
 });
 

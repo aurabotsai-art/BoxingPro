@@ -60,6 +60,28 @@ function gradeGuardReturn(drillId: string, strikes: StrikeLogItem[]): Scorecard 
   };
 }
 
+/** Progress toward a drill's "over N consecutive sessions" requirement.
+ *  Counts consecutive "pass" verdicts back from the most recent GRADED
+ *  attempt; "work" breaks the streak, ungraded attempts (info/null) are
+ *  neutral — they neither extend nor break it. */
+export function passStreak(
+  log: Array<{ drillId: string; verdict: Scorecard["verdict"] }>,
+  drillId: string,
+): number {
+  let streak = 0;
+  for (const r of log) {
+    if (r.drillId !== drillId) continue;
+    if (r.verdict === "pass") streak++;
+    else if (r.verdict === "work") break;
+    // info/null: neutral, keep scanning older attempts
+  }
+  return streak;
+}
+
+/** Consecutive passing sessions that count a criterion as held (content
+ *  phrasing: "over 3 consecutive sessions"). */
+export const MASTERY_STREAK = 3;
+
 export function scoreDrill(drillId: string, strikes: StrikeLogItem[]): Scorecard {
   switch (drillId) {
     case "mirror_return_high":
