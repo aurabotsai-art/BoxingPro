@@ -121,6 +121,26 @@ export function saveDrillResult(r: DrillResult): DrillResult[] {
   return all;
 }
 
+/** Everything the app has learned about this boxer, as one portable JSON
+ *  string (data portability — mirrors the privacy promise on /about: your
+ *  data is yours). Keypoint archives stay in IndexedDB; they export
+ *  per-session from the summary screen because of their size. */
+export function exportAllData(): string {
+  return JSON.stringify(
+    {
+      exported_at: new Date().toISOString(),
+      app: "boxingpro",
+      version: 1,
+      history: loadHistory(),
+      drill_log: loadDrillLog(),
+      personal_best_mps: loadPb(),
+      session_goal: loadGoal(),
+    },
+    null,
+    1,
+  );
+}
+
 export function loadPb(): number | null {
   try {
     const v = Number(localStorage.getItem(PB_KEY));

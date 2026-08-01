@@ -43,6 +43,7 @@ import {
   idbArchiveKeys,
   idbGetArchive,
   idbSaveArchive,
+  exportAllData,
   GOAL_KEY,
   loadDrillLog,
   loadGoal,
@@ -1099,9 +1100,23 @@ export default function SessionPage() {
               </details>
             ))}
           </div>
+          <button
+            onClick={() => {
+              const url = URL.createObjectURL(new Blob([exportAllData()], { type: "application/json" }));
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `boxingpro-data-${new Date().toISOString().slice(0, 10)}.json`;
+              a.click();
+              setTimeout(() => URL.revokeObjectURL(url), 5000);
+            }}
+            data-testid="export-all"
+            style={{ marginTop: 12, width: "100%", background: "#1a1c22", color: "#9aa0aa", border: "1px solid #2c313c", borderRadius: 10, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+          >
+            ⬇ Export all my data (sessions, drills, records)
+          </button>
           <a
             href="/about"
-            style={{ display: "block", marginTop: 14, textAlign: "center", color: "#565c66", fontSize: 12, textDecoration: "none" }}
+            style={{ display: "block", marginTop: 10, textAlign: "center", color: "#565c66", fontSize: 12, textDecoration: "none" }}
           >
             about & privacy — video never leaves your phone
           </a>
