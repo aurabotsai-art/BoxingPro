@@ -8,7 +8,8 @@
     "start": "next start",
     "prepare-assets": "bash scripts/prepare-assets.sh",
     "vercel-build": "bash scripts/prepare-assets.sh && next build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "node e2e/app_test.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.14",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^19",
+    "playwright": "^1.62.1",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }
