@@ -9,8 +9,9 @@
 // Requirements:
 //   - `next start -p 3123` serving a production build (npm run vercel-build)
 //   - Chromium at $CHROMIUM (default /opt/pw-browsers/chromium)
-//   - FAKECAM: path to a y4m clip OF A PERSON for the fake camera
-//     (any phone clip works: ffmpeg -i person.mp4 -pix_fmt yuv420p out.y4m).
+//   - FAKECAM: path to a y4m clip OF A PERSON for the fake camera.
+//     Generate one from the committed fixture: e2e/make_fakecam.sh
+//     (or any phone clip: ffmpeg -i person.mp4 -pix_fmt yuv420p out.y4m).
 //     Without a person in frame, pose-dependent checks report no tracking.
 //
 // Run: FAKECAM=/path/to/person.y4m node e2e/app_test.mjs
