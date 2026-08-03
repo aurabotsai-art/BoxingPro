@@ -49,10 +49,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: pip install jsonschema pyyaml
+      - run: pip install jsonschema pyyaml scikit-learn
       - run: tools/pipeline_check.sh
       - name: Golden-clip regression (synthetic seeds)
         run: python3 tools/golden/run_golden.py
+      - name: Training-pipeline dry run (3-class synthetic plumbing)
+        run: tools/train/dry_run.sh
 
   web:
     name: Web app (production build, mirrors Vercel)
