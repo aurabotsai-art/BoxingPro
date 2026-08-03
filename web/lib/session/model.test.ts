@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bucketRounds, parseDrillDuration, weeklyStats } from "./model";
+import { bucketRounds, parseDrillDuration, sessionDelta, weeklyStats } from "./model";
 import type { StrikeLogItem, Summary } from "./model";
 
 const DAY = 86_400_000;
@@ -110,6 +110,21 @@ describe("bucketRounds", () => {
     const rounds = bucketRounds(log, 0, 480_000);
     expect(rounds[0].avgSpeed).toBe(7);
     expect(rounds[1].avgSpeed).toBe(4);
+  });
+});
+
+describe("sessionDelta", () => {
+  it("computes deltas only for metrics measured in both sessions", () => {
+    const cur = { ...summary(0, 30), avg_peak_speed: 6.5, strikes_per_min: 12 };
+    const prev = { ...summary(-1, 20), avg_peak_speed: 6.0, strikes_per_min: null };
+    const d = sessionDelta(cur, prev)!;
+    expect(d.strikes).toBe(10);
+    expect(d.avgSpeed).toBeCloseTo(0.5);
+    expect(d.pace).toBeNull(); // prev pace unmeasured → no claim
+  });
+
+  it("returns null with no previous session", () => {
+    expect(sessionDelta(summary(0), undefined)).toBeNull();
   });
 });
 

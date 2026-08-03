@@ -30,7 +30,7 @@ import {
   ROUND_REST_S,
   ROUND_WORK_S,
 } from "@/lib/session/model";
-import { notationNamed, parseDrillDuration, punchMix, weeklyStats } from "@/lib/session/model";
+import { notationNamed, parseDrillDuration, punchMix, sessionDelta, weeklyStats } from "@/lib/session/model";
 import type { ComboItem, Hud, LastStrike, RoundStat, StrikeLogItem, Summary, WeekStats } from "@/lib/session/model";
 import { coachTip } from "@/lib/session/coach";
 import { CALL_PLANS, callWords, nextCall, nextGapMs, nextPhaseCall, rng } from "@/lib/session/caller";
@@ -1330,6 +1330,23 @@ export default function SessionPage() {
                   </div>
                 );
               return null;
+            })()}
+            {(() => {
+              // vs last session — only metrics measured both times.
+              const d = sessionDelta(summary.current, summary.history[1]);
+              if (!d) return null;
+              const fmt = (v: number, unit: string, dp = 1) =>
+                `${v >= 0 ? "+" : ""}${dp ? v.toFixed(dp) : v} ${unit}`;
+              const parts = [
+                fmt(d.strikes, "strikes", 0),
+                d.avgSpeed != null ? fmt(d.avgSpeed, "m/s") : null,
+                d.pace != null ? fmt(d.pace, "/min") : null,
+              ].filter(Boolean);
+              return (
+                <div data-testid="delta" style={{ fontSize: 12, color: "#9aa0aa", margin: "0 0 10px", fontVariantNumeric: "tabular-nums" }}>
+                  vs last session: {parts.join(" · ")}
+                </div>
+              );
             })()}
             {(() => {
               const s = summary.current;

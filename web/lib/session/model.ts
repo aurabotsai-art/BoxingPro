@@ -24,8 +24,8 @@ export type LastStrike = {
   straightness: number | null;
   /** "straight" | "curved" | null — coarse path geometry, not punch class. */
   shape: string | null;
-  /** "jab" | "cross" | "hook" | null — stance+geometry heuristic (T2);
-   *  null when the path shape is ambiguous. */
+  /** "jab" | "cross" | "hook" | "uppercut" | null — stance+geometry
+   *  heuristic (T2); null when the path shape is ambiguous. */
   label: string | null;
 };
 
@@ -193,6 +193,27 @@ export function weeklyStats(history: Summary[], now: number): WeekStats {
     streakDays: streak,
     mix7d,
   };
+}
+
+/** Session-over-session deltas for the summary ("vs last session").
+ *  Only metrics measured in BOTH sessions produce a delta — a null on
+ *  either side yields no claim (honesty rule). */
+export function sessionDelta(
+  cur: Summary,
+  prev: Summary | undefined,
+): { strikes: number; avgSpeed: number | null; pace: number | null } | null {
+  if (!prev) return null;
+  const strikes =
+    cur.strikes_left + cur.strikes_right - (prev.strikes_left + prev.strikes_right);
+  const avgSpeed =
+    cur.avg_peak_speed != null && prev.avg_peak_speed != null
+      ? cur.avg_peak_speed - prev.avg_peak_speed
+      : null;
+  const pace =
+    cur.strikes_per_min != null && prev.strikes_per_min != null
+      ? cur.strikes_per_min - prev.strikes_per_min
+      : null;
+  return { strikes, avgSpeed, pace };
 }
 
 /** Bucket work-phase strikes into rounds. offsetMs = rounds start relative
